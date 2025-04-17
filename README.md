@@ -102,7 +102,7 @@ Also, be aware that the GPIB bus is a shared bus. Do not try to control instrume
 There are 3 parts:
 
 - the **LED**. It indicates different states: blue for waiting for DHCP, red for error in network or DHCP, green flashing for idle, green/blue flashing for busy
-- the **Web Server** (on port 80): it shows some help texts and the number of connected clients. It is not interactive.
+- the **Web Server** (on port 80): it shows some help texts and the number of connected clients. It is not (yet) interactive.
 - the **serial console** (via USB): This console shows startup information, ports used, and has a small menu. 
 
 ### The serial menu

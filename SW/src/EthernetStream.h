@@ -29,7 +29,8 @@ private:
     String buffer;
     unsigned long lastActivityTime;  // Track the last activity time
     const unsigned long timeout;  // Timeout period in milliseconds
-
+    unsigned long lastWriteTime; // Track time since last data to buffer
+    const unsigned long timeout_write; // Flush buffer if no newline after timeout period
 
 };
 

@@ -401,6 +401,10 @@ void loop_serial_ui_and_led(int nrConnections) {
                 debugPort.println(F("Ethernet link is OK now"));
             }
             ethernet_has_problem = false;
+            
+        if (ethernet_has_problem) {
+            LEDRed();
+            }
         }
 
 #ifdef LOG_STATS_ON_CONSOLE

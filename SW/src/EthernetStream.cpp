@@ -2,7 +2,7 @@
 
 
 EthernetStream::EthernetStream()
-    : lastActivityTime(0), timeout(10000) {}
+    : lastActivityTime(0), lastWriteTime(0), timeout(10000), timeout_write(500) {}
 
 
 bool EthernetStream::begin(uint32_t port) {
@@ -70,14 +70,19 @@ void EthernetStream::flush() {
 size_t EthernetStream::write(uint8_t b) {
     if (client) {
         buffer += static_cast<char>(b);
-        if (b == '\n') {
+
+        unsigned long now = millis();
+        if (b == '\n' || buffer.length() >= 1024 || (now - lastWriteTime) > timeout_write) {
             client.print(buffer);
             buffer = "";
+            lastWriteTime = now;
         }
+
         return 1;
     }
     return 0;
 }
+
 
 int EthernetStream::maintain(void) {
     unsigned long currentMillis = millis();

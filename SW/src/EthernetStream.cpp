@@ -72,7 +72,7 @@ size_t EthernetStream::write(uint8_t b) {
         buffer += static_cast<char>(b);
 
         unsigned long now = millis();
-        if (b == '\n' || buffer.length() >= 1024 || (now - lastWriteTime) > timeout_write) {
+        if (b == '\n' || buffer.length() >= 1024) {// || (now - lastWriteTime) > timeout_write) {
             client.print(buffer);
             buffer = "";
             lastWriteTime = now;

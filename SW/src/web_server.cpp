@@ -139,8 +139,10 @@ void BasicWebServer::loop(int nrConnections) {
                     // terminate the string
                     startreq[i][j] = 0;
                 }
-                // TODO: add a lookup table for the path, and functions
-                if ((path != NULL) && (strcmp(path,"/") == 0)) {
+                // TODO: add a lookup table for the path, pointing to external functions
+                // TODO: this here is just a test with 2 valid URLs
+                // TODO: add context (like the connected instruments found) to the loop function or use an external function that has access to all of that
+                if ((path != NULL) && ((strcmp(path,"/") == 0) || (strcmp(path,"/scan") == 0))) {
                     // this is the root path
                     // send a response
                     sendResponseOK(clients[i], nrConnections);
@@ -178,16 +180,23 @@ void BasicWebServer::sendResponseErr(EthernetClient &client) {
 }
 
 void BasicWebServer::sendResponseOK(EthernetClient &client, int nrConnections) {
-    // Construct the HTML streaming via buffer, as that greatly lowers the amount of network packets
+    // This is the main page of the server. All other valid URLs return to this page.
+    // The refresh is done via meta, allowing the page URL to be "reset" to the main page upon refresh
+    //
+    // The server construct the HTML streaming via buffer, as that greatly lowers the amount of network packets
     // If I do client.print, 1 character is sent at a time, using up 2 network packets per character
 
     char buff[512];
     BufferedPrint bp(client, buff, sizeof(buff));
+    // TODO: consider moving to picocss or bootstrap for the buttons etc. But that would add an external dependency.
 
-    bp.print(F("HTTP/1.1 200 OK\nContent-Type: text/html\nConnection: close\nRefresh: 5\n\n"));  // refresh the page automatically every 5 sec
-    bp.print(F("<!DOCTYPE HTML>\n<html><head><title>Ethernet2GPIB</title><style>body { font-family: Arial, sans-serif; }</style></head><body>"));
+    bp.print(F("HTTP/1.1 200 OK\nContent-Type: text/html\nConnection: close\n\n"));  
+    bp.print(F("<!DOCTYPE HTML>\n<html><head><title>Ethernet2GPIB</title>"));
+    bp.print(F("<style>body { font-family: Arial, sans-serif; }</style>"));
+    bp.print(F("<meta http-equiv=\"refresh\" content=\"5;URL=/\">")); // refresh automatically, while going to the home page after 5 sec
+    bp.print(F("</head><body>"));
     bp.print(F("<h1>" DEVICE_NAME "</h1>"));
-    bp.print(F("<p>Number of connections: "));
+    bp.print(F("<p>Number of client connections: "));
     bp.print(nrConnections);
     bp.print(F("</p>"));
 #ifdef INTERFACE_VXI11

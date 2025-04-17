@@ -133,3 +133,4 @@ This project is licensed under the GPL V3. See the [LICENSE](LICENSE) file for d
 ## Acknowledgements
 
 - A huge thanks to the [AR488 project](https://github.com/Twilight-Logic/AR488), run by [Twilight-Logic](https://github.com/Twilight-Logic) and its community contributors. The current software is a fork of AR488. For more information about this, see [here](SW/README.md).
+- The VXI-11 driver is partially inherited from [espBode](https://github.com/awakephd/espBode), and went through various evolutions before arriving here.

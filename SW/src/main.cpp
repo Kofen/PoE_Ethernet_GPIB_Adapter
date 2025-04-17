@@ -72,6 +72,9 @@ _24AA256UID eeprom(0x50, true);
 // GPIB bus object
 extern GPIBbus gpibBus;
 
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
 #ifdef INTERFACE_VXI11
 
 #pragma region SCPI handler
@@ -256,18 +259,16 @@ void setup() {
 
     // This would be the place to add mdns, but none of the main mdns libraries support the present ethernet library
 #ifdef INTERFACE_VXI11
-    debugPort.println(F("Starting VXI-11 TCP server..."));
+    debugPort.println(F("Starting VXI-11 TCP RPC server on port " STR(VXI11_PORT) "..."));
     vxi_server.begin(VXI11_PORT, LOG_VXI_DETAILS);
 
-    debugPort.println(F("Starting VXI-11 port mappers on TCP and UDP..."));
+    debugPort.println(F("Starting VXI-11 port mappers on TCP and UDP on port 111..."));
     rpc_bind_server.begin(LOG_VXI_DETAILS);
     debugPort.println(F("VXI-11 servers started"));
 #endif
 
 
 #ifdef INTERFACE_PROLOGIX
-#define STR_HELPER(x) #x
-#define STR(x) STR_HELPER(x)
 
     debugPort.println(F("Starting Prologix TCP server on port " STR(PROLOGIX_PORT) "..."));
     // delay(1000);  // wait for message to be printed

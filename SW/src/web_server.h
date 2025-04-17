@@ -5,6 +5,8 @@
 
 #define MAX_WEB_CLIENTS 1
 
+#define MAX_START_LINE_LENGTH 64
+
 class BasicWebServer {
 public:
     BasicWebServer();
@@ -21,5 +23,5 @@ private:
     EthernetClient clients[MAX_WEB_CLIENTS];
     bool currentLineIsBlank[MAX_WEB_CLIENTS];
     int charsRead[MAX_WEB_CLIENTS];
-    uint8_t startreq[MAX_WEB_CLIENTS][6];
+    uint8_t startreq[MAX_WEB_CLIENTS][MAX_START_LINE_LENGTH]; // buffer for the request line
 };

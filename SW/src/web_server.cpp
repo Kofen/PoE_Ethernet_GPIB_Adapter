@@ -92,11 +92,17 @@ void BasicWebServer::loop(int nrConnections) {
         // an http request ends with a blank line
         while (clients[i].connected() && clients[i].available()) {
             char c = clients[i].read();
-            // read the first characters if I am at the start
-            if (charsRead[i] < sizeof(startreq[i])) {
-                // store the character in the buffer
-                startreq[i][charsRead[i]] = c;
-                charsRead[i]++;
+            // read the first line, until \newline or end of buffer.
+            // The buffer was set to \0, so I'll always have a null terminated string, no matter the stop reason
+            if (charsRead[i] < sizeof(startreq[i]) - 1) {
+                if (c == '\r' || c == '\n') {
+                    // end the line
+                    charsRead[i] = sizeof(startreq[i]) - 1; // mark as full
+                } else {
+                    // store the character in the buffer
+                    startreq[i][charsRead[i]] = c;
+                    charsRead[i]++;
+                }
             }
             // if you've gotten to the end of the line (received a newline
             // character) and the line is blank, the http request has ended,
@@ -106,14 +112,36 @@ void BasicWebServer::loop(int nrConnections) {
                     debugPort.print(F("Got complete request on slot "));
                     debugPort.print(i);
                     debugPort.print(F(": \""));
-                    for (int j = 0; j < charsRead[i]; j++) {
-                        debugPort.print((char)startreq[i][j]);
+                    for (int j = 0; j < sizeof(startreq[i]); j++) {
+                        char c = startreq[i][j];
+                        if (c == 0) {
+                            break;
+                        }
+                        debugPort.print(c);
                     }
                     debugPort.println(F("\""));
                 }                
                 // got all data. Check what the request was for
-                if (startreq[i][0] == 'G' && startreq[i][1] == 'E' && startreq[i][2] == 'T' &&
-                    startreq[i][3] == ' ' && startreq[i][4] == '/' && startreq[i][5] == ' ') {
+                // I only support GET requests
+                char *path = NULL;
+                if (startreq[i][0] == 'G' && startreq[i][1] == 'E' && startreq[i][2] == 'T' && startreq[i][3] == ' ') {
+                    // This was GET
+                    // now read until the first non space
+                    int j = 4;
+                    while ((j < sizeof(startreq[i])-1) && (startreq[i][j] == ' ') && (startreq[i][j] != 0)) {
+                        j++;
+                    }
+                    path = (char *)(&startreq[i][j]);
+                    // and then the first space after that
+                    while ((j < sizeof(startreq[i])-1) && (startreq[i][j] != ' ') && (startreq[i][j] != 0)) {
+                        j++;
+                    }
+                    // terminate the string
+                    startreq[i][j] = 0;
+                }
+                // TODO: add a lookup table for the path, and functions
+                if ((path != NULL) && (strcmp(path,"/") == 0)) {
+                    // this is the root path
                     // send a response
                     sendResponseOK(clients[i], nrConnections);
                 } else {

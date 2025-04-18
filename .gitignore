@@ -1,0 +1,4 @@
+.DS_Store
+SW/.pio
+SW/.vscode/*
+SW/test_tools/network_instrument/__pycache__/*

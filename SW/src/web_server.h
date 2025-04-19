@@ -18,8 +18,10 @@ private:
     bool debug;
     int nr_connections(void);
     bool have_free_connections(void);
-    void sendResponseErr(EthernetClient &client);
-    void sendResponseOK(EthernetClient &client, int nrConnections);
+    void sendResponseErr(BufferedPrint& bp);
+    void sendResponseOK(BufferedPrint& bp, int nrConnections);
+    void sendResponsePlainText(BufferedPrint& bp, const char* text);
+    void sendResponsePlainNumber(BufferedPrint& bp, int nr);
     EthernetServer server = EthernetServer(80);
     EthernetClient clients[MAX_WEB_CLIENTS];
     bool currentLineIsBlank[MAX_WEB_CLIENTS];

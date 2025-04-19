@@ -140,16 +140,27 @@ void BasicWebServer::loop(int nrConnections) {
                     startreq[i][j] = 0;
                 }
                 // TODO: add a lookup table for the path, pointing to external functions
-                // TODO: this here is just a test with 2 valid URLs
-                // TODO: add context (like the connected instruments found) to the loop function or use an external function that has access to all of that
-                if ((path != NULL) && ((strcmp(path,"/") == 0) || (strcmp(path,"/scan") == 0))) {
-                    // this is the root path
-                    // send a response
-                    sendResponseOK(clients[i], nrConnections);
+                // TODO fill in /fnd, /snd, /rd, and see how to make "query" easier than 2 buttons
+                // TODO make textarea readonly for the users
+                char buff[512];
+                BufferedPrint bp(clients[i], buff, sizeof(buff));                
+                if (path != NULL) {
+                    if (strcmp(path,"/") == 0) {
+                        // this is the root path
+                        // send a response
+                        sendResponseOK(bp, nrConnections);                        
+                    } else if (strcmp(path,"/cnx") == 0) {
+                        sendResponsePlainNumber(bp, nrConnections);
+                    } else {
+                        // this is not a valid path
+                        // send an error response
+                        sendResponseErr(bp);
+                    }
                 } else {
                     // send an error response
-                    sendResponseErr(clients[i]);
+                    sendResponseErr(bp);
                 }
+                bp.flush();
                 delay(10);  // yield to send reply
                 if (debug) {
                     debugPort.print(F("Sent data and Closing Web connection of slot "));
@@ -171,12 +182,20 @@ void BasicWebServer::loop(int nrConnections) {
     }
 };
 
-void BasicWebServer::sendResponseErr(EthernetClient &client) {
-    char buff[40];
-    BufferedPrint bp(client, buff, sizeof(buff));
-
+void BasicWebServer::sendResponseErr(BufferedPrint& bp) {
     bp.print(F("HTTP/1.1 404 Not Found\n"));
-    bp.flush();
+}
+
+void BasicWebServer::sendResponsePlainText(BufferedPrint& bp, const char* text){
+    // This is a simple response, no HTML
+    bp.print(F("HTTP/1.1 200 OK\nContent-Type: text/plain\nConnection: close\n\n"));
+    bp.print(text);
+}
+
+void BasicWebServer::sendResponsePlainNumber(BufferedPrint& bp, int nr){
+    // This is a simple response, no HTML
+    bp.print(F("HTTP/1.1 200 OK\nContent-Type: text/plain\nConnection: close\n\n"));
+    bp.print(nr);
 }
 
 void BasicWebServer::printOption(BufferedPrint& bp, const char* name) {
@@ -187,15 +206,13 @@ void BasicWebServer::printOption(BufferedPrint& bp, const char* name) {
     bp.print(F("</option>"));
 }
 
-void BasicWebServer::sendResponseOK(EthernetClient &client, int nrConnections) {
+void BasicWebServer::sendResponseOK(BufferedPrint& bp, int nrConnections) {
     // This is the main page of the server. All other valid URLs return to this page.
     // The refresh is done via meta, allowing the page URL to be "reset" to the main page upon refresh
     //
     // The server construct the HTML streaming via buffer, as that greatly lowers the amount of network packets
     // If I do client.print, 1 character is sent at a time, using up 2 network packets per character
 
-    char buff[512];
-    BufferedPrint bp(client, buff, sizeof(buff));
     // TODO: thoughts about ROM size optimisation:
     // a function call in AVR GCC costs 6 or 8 bytes (depending if the called function is far away: RCALL or CALL)
     // So: there is no use in splitting the HTML template into many smaller functions
@@ -246,6 +263,5 @@ void BasicWebServer::sendResponseOK(EthernetClient &client, int nrConnections) {
         "function scroll() { self.r.scrollTop = self.r.scrollHeight; }\n</script>\n"));
 #endif
     bp.print(F("</body></html>\n\n"));
-    bp.flush();
 }
 #endif

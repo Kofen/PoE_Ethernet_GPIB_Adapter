@@ -179,6 +179,14 @@ void BasicWebServer::sendResponseErr(EthernetClient &client) {
     bp.flush();
 }
 
+void BasicWebServer::printOption(BufferedPrint& bp, const char* name) {
+    bp.print(F("<option value=\""));
+    bp.print(name);
+    bp.print(F("\">"));
+    bp.print(name);
+    bp.print(F("</option>"));
+}
+
 void BasicWebServer::sendResponseOK(EthernetClient &client, int nrConnections) {
     // This is the main page of the server. All other valid URLs return to this page.
     // The refresh is done via meta, allowing the page URL to be "reset" to the main page upon refresh
@@ -188,32 +196,56 @@ void BasicWebServer::sendResponseOK(EthernetClient &client, int nrConnections) {
 
     char buff[512];
     BufferedPrint bp(client, buff, sizeof(buff));
-    // TODO: consider moving to picocss or bootstrap for the buttons etc. But that would add an external dependency.
-
+    // TODO: thoughts about ROM size optimisation:
+    // a function call in AVR GCC costs 6 or 8 bytes (depending if the called function is far away: RCALL or CALL)
+    // So: there is no use in splitting the HTML template into many smaller functions
+    
     bp.print(F("HTTP/1.1 200 OK\nContent-Type: text/html\nConnection: close\n\n"));  
-    bp.print(F("<!DOCTYPE HTML>\n<html><head><title>Ethernet2GPIB</title>"));
-    bp.print(F("<style>body { font-family: Arial, sans-serif; }</style>"));
-    bp.print(F("<meta http-equiv=\"refresh\" content=\"5;URL=/\">")); // refresh automatically, while going to the home page after 5 sec
-    bp.print(F("</head><body>"));
-    bp.print(F("<h1>" DEVICE_NAME "</h1>"));
-    bp.print(F("<p>Number of client connections: "));
-    bp.print(nrConnections);
-    bp.print(F("</p>"));
+    bp.print(F("<!DOCTYPE html><html lang=\"en\"> <head> <meta charset=\"UTF-8\" /> "
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" /> "
+        "<title>Ethernet2GPIB</title> <style> body { font-family: Arial, sans-serif; } "
 #ifdef INTERFACE_VXI11
-    bp.print(F("<h2>VXI-11 Ethernet Server</h2>"));
-    bp.print(F("<p>VISA connection strings:</p><p>Controller: <b>TCPIP::"));
-    bp.print(Ethernet.localIP());
-    bp.print(F("::INSTR</b> (unless you have set the default instrument address to something else than 0)</p><p>Instruments: <b>TCPIP::"));
-    bp.print(Ethernet.localIP());
-    bp.print(F("::gpib,<i>N</i>::INSTR</b> or <b>...::inst<i>N</i>::INSTR</b>, where <i>N</i> is their address on the GPIB bus (1..30)</p>"));
+        "table { text-align: left; border-collapse: collapse; } "
+        "th, td { padding: 2px 8px; white-space: nowrap; vertical-align: top; } "
+        "button { margin: 0px 2px; color: white; background-color: gray; padding: 2px 12px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; } "
+        "textarea { width: 100%; } input { width: 100%; } "
 #endif
+        "</style> </head> <body> <h1>" DEVICE_NAME "</h1> <p>Number of client connections: <span id=\"cnx\">"));
+    bp.print(nrConnections);
+    bp.print(F("</span></p> "));
 #ifdef INTERFACE_PROLOGIX
-    bp.print(F("<h2>Prologix GPIB Ethernet Server</h2>"));
-    bp.print(F("<p>IP Address: "));
+    bp.print(F("<h2>Prologix GPIB Ethernet Server</h2><p>IP Address: "));
     bp.print(Ethernet.localIP());
     bp.print(F("</p>"));
 #endif
-    bp.print("</body></html>\n\n");
+#ifdef INTERFACE_VXI11
+    bp.print(F("<h2>VXI-11 Ethernet Server</h2> <h3>VISA connection strings:</h3> <table> <tr> <td>Controller:</td> <td> <b>TCPIP::"));
+    bp.print(Ethernet.localIP());
+    bp.print(F("::INSTR</b> (unless you have set the default instrument address to something else than 0) </td> </tr> <tr> <td>Instruments:</td> <td> <b>TCPIP::"));
+    bp.print(Ethernet.localIP());
+    bp.print(F("::gpib,<i>N</i>::INSTR</b> or <b>...::inst<i>N</i>::INSTR</b>, where <i>N</i> is their address on the GPIB bus (1..30) </td> </tr> </table> "));
+    bp.print(F("<h3>Interactive IO:</h3> <table> <tr> <th>Instruments</th> <th colspan=\"2\">Command</th> </tr> "
+        "<tr> <td rowspan=\"4\"> <select id=\"inst\" size=\"4\"> </select> <br /> <button onclick=\"find()\">Find</button> </td> "
+        "<td width=\"80%\"><input type=\"text\" id=\"cmd\" value=\"\" /></td> <td> <button onclick=\"self.cmd.value=self.pre.value\"><</button> "
+        "<select id=\"pre\">"));
+    printOption(bp, "*IDN?");
+    printOption(bp, "*RST");
+    printOption(bp, "*OPC?");
+    printOption(bp, "*CLS");
+    printOption(bp, ":SYSTem:ERRor?");
+    bp.print(F("</select> </td> </tr> <tr> <td colspan=\"2\"> <button onclick=\"send()\">Send</button>"
+        "<button onclick=\"read()\">Read</button> </td> </tr> "
+        "<tr> <th colspan=\"2\">History</th> </tr> <tr> <td colspan=\"2\"> <textarea id=\"r\" rows=\"10\" cols=\"80\"></textarea><br /> "
+        "<button onclick=\"self.r.value=''; scroll()\">Clear</button> </td> </tr> </table> "
+        "<script>\nfunction tick() { fetch(\"/cnx\") .then((response) => { if (!response.ok) { return \"?\"; } return response.text(); }) .then((data) => { self.cnx.innerHTML = data; }); }\nsetInterval(tick, 5000);"
+        "function find() { fetch(\"/fnd\") .then((response) => { if (!response.ok) { throw new Error(\"ERR: \" + response.statusText); } return response.text(); }) .then((data) => { self.inst.innerHTML = data; }); };\n"
+        "function send() { const inst = self.inst.value; const cmd = self.cmd.value;\nif (cmd === \"\" || inst === \"\") { return; }\n"
+        "fetch(\"/snd\" + \"/\" + inst + \"/\" + cmd) .then((response) => { if (!response.ok) { throw new Error(\"ERR: \" + response.statusText); } return response.text(); }) .then((data) => { self.r.value += \"> \" + inst + \": \" + cmd + \"\\n\"; scroll(); }); };\n"
+        "function read() { const inst = self.inst.value;\nif (inst === \"\") { return; }\n"
+        "fetch(\"/rd\" + \"/\" + inst) .then((response) => { if (!response.ok) { throw new Error(\"ERR: \" + response.statusText); } return response.text(); }) .then((data) => { self.r.value += \"< \" + inst + \": \" + data + \"\\n\"; scroll(); }); };\n"
+        "function scroll() { self.r.scrollTop = self.r.scrollHeight; }\n</script>\n"));
+#endif
+    bp.print(F("</body></html>\n\n"));
     bp.flush();
 }
 #endif

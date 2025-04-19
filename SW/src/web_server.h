@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Ethernet.h>
+#include <StreamLib.h>
 #include "config.h"
 
 #define MAX_WEB_CLIENTS 1
@@ -24,4 +25,6 @@ private:
     bool currentLineIsBlank[MAX_WEB_CLIENTS];
     int charsRead[MAX_WEB_CLIENTS];
     uint8_t startreq[MAX_WEB_CLIENTS][MAX_START_LINE_LENGTH]; // buffer for the request line
+
+    void printOption(BufferedPrint& bp, const char* name);
 };

@@ -150,7 +150,43 @@ void BasicWebServer::loop(int nrConnections) {
                         // send a response
                         sendResponseOK(bp, nrConnections);                        
                     } else if (strcmp(path,"/cnx") == 0) {
-                        sendResponsePlainNumber(bp, nrConnections);
+                        sendResponseHeaderPlainText(bp);
+                        bp.print(nrConnections);
+                    } else if (strcmp(path,"/fnd") == 0) {
+                        sendResponseHeaderPlainText(bp);
+                        // this is the find command
+                        // TODO search for instruments on the bus, see fndl_h()
+                        // mock the response for now
+                        printOption(bp, "gpib,1");
+                        printOption(bp, "gpib,2");
+                    } else if (strncmp(path,"/ex/gpib,",9) == 0) {
+                        sendResponseHeaderPlainText(bp);
+                        // this is the execute command
+                        // TODO filter out instrument and parameters
+                        // and send the command to the instrument
+                        // and read, if command ends with ?
+                        if (path[strlen(path)-1] == '?') {
+                            // this needs a read command
+                            // TODO get the reply from the instrument
+                            // mock the response for now
+                            bp.print(F("bla"));
+                        } else {
+                            // this is a send command
+                            // TODO filter out instrument and parameters
+                            // and send the command to the instrument
+                        }
+                    } else if (strncmp(path,"/sd/gpib,",9) == 0) {
+                        sendResponseHeaderPlainText(bp);
+                        // this is the send command
+                        // TODO filter out instrument and parameters
+                        // and send the command to the instrument
+                    } else if (strncmp(path,"/rd/gpib,",9) == 0) {
+                        sendResponseHeaderPlainText(bp);
+                        // this is the read command
+                        // TODO filter out instrument
+                        // and get the reply from the instrument
+                        // mock the response for now
+                        bp.print(F("bla"));
                     } else {
                         // this is not a valid path
                         // send an error response
@@ -186,16 +222,9 @@ void BasicWebServer::sendResponseErr(BufferedPrint& bp) {
     bp.print(F("HTTP/1.1 404 Not Found\n"));
 }
 
-void BasicWebServer::sendResponsePlainText(BufferedPrint& bp, const char* text){
+void BasicWebServer::sendResponseHeaderPlainText(BufferedPrint& bp){
     // This is a simple response, no HTML
     bp.print(F("HTTP/1.1 200 OK\nContent-Type: text/plain\nConnection: close\n\n"));
-    bp.print(text);
-}
-
-void BasicWebServer::sendResponsePlainNumber(BufferedPrint& bp, int nr){
-    // This is a simple response, no HTML
-    bp.print(F("HTTP/1.1 200 OK\nContent-Type: text/plain\nConnection: close\n\n"));
-    bp.print(nr);
 }
 
 void BasicWebServer::printOption(BufferedPrint& bp, const char* name) {
@@ -250,14 +279,16 @@ void BasicWebServer::sendResponseOK(BufferedPrint& bp, int nrConnections) {
     printOption(bp, "*OPC?");
     printOption(bp, "*CLS");
     printOption(bp, ":SYSTem:ERRor?");
-    bp.print(F("</select> </td> </tr> <tr> <td colspan=\"2\"> <button onclick=\"send()\">Send</button>"
-        "<button onclick=\"read()\">Read</button> </td> </tr> "
+    bp.print(F("</select> </td> </tr> <tr> <td colspan=\"2\"> "
+        "<button onclick=\"ex('ex')\">Execute</button>"
+        "&nbsp&nbsp(<button onclick=\"ex('sd')\">Send</button> <button onclick=\"read()\">Read</button>) "
+        "</td> </tr> "
         "<tr> <th colspan=\"2\">History</th> </tr> <tr> <td colspan=\"2\"> <textarea id=\"r\" rows=\"10\" cols=\"80\"></textarea><br /> "
         "<button onclick=\"self.r.value=''; scroll()\">Clear</button> </td> </tr> </table> "
         "<script>\nfunction tick() { fetch(\"/cnx\") .then((response) => { if (!response.ok) { return \"?\"; } return response.text(); }) .then((data) => { self.cnx.innerHTML = data; }); }\nsetInterval(tick, 5000);"
         "function find() { fetch(\"/fnd\") .then((response) => { if (!response.ok) { throw new Error(\"ERR: \" + response.statusText); } return response.text(); }) .then((data) => { self.inst.innerHTML = data; }); };\n"
-        "function send() { const inst = self.inst.value; const cmd = self.cmd.value;\nif (cmd === \"\" || inst === \"\") { return; }\n"
-        "fetch(\"/snd\" + \"/\" + inst + \"/\" + cmd) .then((response) => { if (!response.ok) { throw new Error(\"ERR: \" + response.statusText); } return response.text(); }) .then((data) => { self.r.value += \"> \" + inst + \": \" + cmd + \"\\n\"; scroll(); }); };\n"
+        "function ex(m) { const inst = self.inst.value; const cmd = self.cmd.value;\nif (cmd === \"\" || inst === \"\") { return; }\n"
+        "fetch(\"/\" + m + \"/\" + inst + \"/\" + cmd) .then((response) => { if (!response.ok) { throw new Error(\"ERR: \" + response.statusText); } return response.text(); }) .then((data) => { self.r.value += \"> \" + inst + \": \" + cmd + \"\\n\"; if (data !== \"\") {self.r.value += \"< \" + inst + \": \" + data + \"\\n\";}; scroll(); }); };\n"
         "function read() { const inst = self.inst.value;\nif (inst === \"\") { return; }\n"
         "fetch(\"/rd\" + \"/\" + inst) .then((response) => { if (!response.ok) { throw new Error(\"ERR: \" + response.statusText); } return response.text(); }) .then((data) => { self.r.value += \"< \" + inst + \": \" + data + \"\\n\"; scroll(); }); };\n"
         "function scroll() { self.r.scrollTop = self.r.scrollHeight; }\n</script>\n"));

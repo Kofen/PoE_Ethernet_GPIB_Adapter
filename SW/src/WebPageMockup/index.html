@@ -65,11 +65,7 @@
       </tr>
       <tr>
         <td rowspan="4">
-          <select id="inst" size="4">
-            <option value="gpib,1">gpib,1</option>
-            <option value="gpib,2" selected>gpib,2</option>
-            <option value="gpib,3">gpib,3</option>
-          </select>
+          <select id="inst" size="4" style="width: 9ch;"></select>
           <br />
           <button onclick="find()">Find</button>
         </td>
@@ -87,7 +83,9 @@
       </tr>
       <tr>
         <td colspan="2">
-          <button onclick="send()">Send</button><button onclick="read()">Read</button>
+          <button onclick="ex(0)">Execute</button>
+          &nbsp;&nbsp;(<button onclick="ex(1)">Send</button>
+          <button onclick="ex(2)">Read</button>)
         </td>
       </tr>
       <tr>
@@ -95,19 +93,17 @@
       </tr>
       <tr>
         <td colspan="2">
-          <textarea id="r" rows="10" cols="80"></textarea><br />
+          <textarea id="r" rows="10" cols="80" readonly></textarea><br />
           <button onclick="self.r.value=''; scroll()">Clear</button>
         </td>
       </tr>
     </table>
-
     <script>
-      // Connections update
       function tick() {
         fetch("/cnx")
           .then((response) => {
             if (!response.ok) {
-                return "?";
+              return "?";
             }
             return response.text();
           })
@@ -116,8 +112,6 @@
           });
       }
       setInterval(tick, 5000);
-
-      // Find
       function find() {
         fetch("/fnd")
           .then((response) => {
@@ -129,35 +123,23 @@
           .then((data) => {
             self.inst.innerHTML = data;
           });
-      };
-
-      // Send
-      function send() {
+      }
+      function ex(t) {
         const inst = self.inst.value;
         const cmd = self.cmd.value;
-        if (cmd === "" || inst === "") {
-          return;
-        }
-        fetch("/snd" + "/" + inst + "/" + cmd)
-          .then((response) => {
-            if (!response.ok) {
-              throw new Error("ERR: " + response.statusText);
-            }
-            return response.text();
-          })
-          .then((data) => {
-            self.r.value += "> " + inst + ": " + cmd + "\n";
-            scroll();
-          });
-      };
-
-      // Read
-      function read() {
-        const inst = self.inst.value;
         if (inst === "") {
+          alert("Please select an instrument");
           return;
         }
-        fetch("/rd" + "/" + inst)
+        var m = "/ex" + t.toString() + "/" + inst
+        if (t < 2) {
+          if (cmd === "") {
+            alert("Please enter a command");
+            return;
+          }
+          m += "/" + cmd;
+        }
+        fetch(m)
           .then((response) => {
             if (!response.ok) {
               throw new Error("ERR: " + response.statusText);
@@ -165,14 +147,14 @@
             return response.text();
           })
           .then((data) => {
-            self.r.value += "< " + inst + ": " + data + "\n";
+            if (t < 2) {
+              self.r.value += "> " + inst + ": " + cmd + "\n";
+            }
+            if ((t === 2) || ((t === 0) && (data !== ""))) {
+              self.r.value += "< " + inst + ": " + data + "\n";
+            }
             scroll();
           });
-      };
-
-      // MUST be a separate function
-      function scroll() {
-        self.r.scrollTop = self.r.scrollHeight;
       }
     </script>
   </body>

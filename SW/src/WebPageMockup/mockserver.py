@@ -17,14 +17,32 @@ def cnx():
     return str(random.randint(0, 4))
 
 
-@app.route('/snd/<string:inst>/<string:cmd>')
+@app.route('/ex0/<string:inst>/<string:cmd>')
+def ex(inst: str, cmd: str):
+    print("ex/" + inst + "/" + cmd)
+    
+    # This doesn't work with flask, since it is disturbed by the ? in the command
+    if cmd.endswith("?"):
+        return "bla"
+    else:
+        # workaround for flask:
+        if cmd == "*IDN":
+            return "bla"
+        elif cmd == "SYST:ERR":
+            return "0,\"No error\""
+        else:        
+            return ""
+
+
+@app.route('/ex1/<string:inst>/<string:cmd>')
 def send(inst: str, cmd: str):
-    print(inst + "/" + cmd)
+    print("send/" + inst + "/" + cmd)
     return ""
 
 
-@app.route('/rd/<string:inst>')
+@app.route('/ex2/<string:inst>')
 def read(inst: str):
+    print("read/" + inst)
     return "bla"
 
 

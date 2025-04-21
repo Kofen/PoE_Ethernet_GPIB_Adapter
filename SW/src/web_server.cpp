@@ -159,7 +159,7 @@ void BasicWebServer::loop(int nrConnections) {
                         // mock the response for now
                         printOption(bp, "gpib,1");
                         printOption(bp, "gpib,2");
-                    } else if (strncmp(path,"/ex/gpib,",9) == 0) {
+                    } else if (strncmp(path,"/ex0/gpib,",9) == 0) {
                         sendResponseHeaderPlainText(bp);
                         // this is the execute command
                         // TODO filter out instrument and parameters
@@ -175,12 +175,12 @@ void BasicWebServer::loop(int nrConnections) {
                             // TODO filter out instrument and parameters
                             // and send the command to the instrument
                         }
-                    } else if (strncmp(path,"/sd/gpib,",9) == 0) {
+                    } else if (strncmp(path,"/ex1/gpib,",9) == 0) {
                         sendResponseHeaderPlainText(bp);
                         // this is the send command
                         // TODO filter out instrument and parameters
                         // and send the command to the instrument
-                    } else if (strncmp(path,"/rd/gpib,",9) == 0) {
+                    } else if (strncmp(path,"/ex2/gpib,",9) == 0) {
                         sendResponseHeaderPlainText(bp);
                         // this is the read command
                         // TODO filter out instrument
@@ -247,50 +247,53 @@ void BasicWebServer::sendResponseOK(BufferedPrint& bp, int nrConnections) {
     // So: there is no use in splitting the HTML template into many smaller functions
     
     bp.print(F("HTTP/1.1 200 OK\nContent-Type: text/html\nConnection: close\n\n"));  
-    bp.print(F("<!DOCTYPE html><html lang=\"en\"> <head> <meta charset=\"UTF-8\" /> "
+    bp.print(F("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\" /> "
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" /> "
-        "<title>Ethernet2GPIB</title> <style> body { font-family: Arial, sans-serif; } "
+        "<title>Ethernet2GPIB</title><style> body { font-family: Arial, sans-serif; } "
 #ifdef INTERFACE_VXI11
         "table { text-align: left; border-collapse: collapse; } "
         "th, td { padding: 2px 8px; white-space: nowrap; vertical-align: top; } "
         "button { margin: 0px 2px; color: white; background-color: gray; padding: 2px 12px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; } "
         "textarea { width: 100%; } input { width: 100%; } "
 #endif
-        "</style> </head> <body> <h1>" DEVICE_NAME "</h1> <p>Number of client connections: <span id=\"cnx\">"));
+        "</style></head><body><h1>" DEVICE_NAME "</h1><p>Number of client connections: <span id=\"cnx\">"));
     bp.print(nrConnections);
-    bp.print(F("</span></p> "));
+    bp.print(F("</span></p>\n"));
 #ifdef INTERFACE_PROLOGIX
     bp.print(F("<h2>Prologix GPIB Ethernet Server</h2><p>IP Address: "));
     bp.print(Ethernet.localIP());
     bp.print(F("</p>"));
 #endif
 #ifdef INTERFACE_VXI11
-    bp.print(F("<h2>VXI-11 Ethernet Server</h2> <h3>VISA connection strings:</h3> <table> <tr> <td>Controller:</td> <td> <b>TCPIP::"));
+    bp.print(F("<h2>VXI-11 Ethernet Server</h2><h3>VISA connection strings:</h3><table><tr><td>Controller:</td><td><b>TCPIP::"));
     bp.print(Ethernet.localIP());
-    bp.print(F("::INSTR</b> (unless you have set the default instrument address to something else than 0) </td> </tr> <tr> <td>Instruments:</td> <td> <b>TCPIP::"));
+    bp.print(F("::INSTR</b> (unless you have set the default instrument address to something else than 0)</td></tr><tr><td>Instruments:</td><td><b>TCPIP::"));
     bp.print(Ethernet.localIP());
-    bp.print(F("::gpib,<i>N</i>::INSTR</b> or <b>...::inst<i>N</i>::INSTR</b>, where <i>N</i> is their address on the GPIB bus (1..30) </td> </tr> </table> "));
-    bp.print(F("<h3>Interactive IO:</h3> <table> <tr> <th>Instruments</th> <th colspan=\"2\">Command</th> </tr> "
-        "<tr> <td rowspan=\"4\"> <select id=\"inst\" size=\"4\"> </select> <br /> <button onclick=\"find()\">Find</button> </td> "
-        "<td width=\"80%\"><input type=\"text\" id=\"cmd\" value=\"\" /></td> <td> <button onclick=\"self.cmd.value=self.pre.value\"><</button> "
+    bp.print(F("::gpib,<i>N</i>::INSTR</b> or <b>...::inst<i>N</i>::INSTR</b>, where <i>N</i> is their address on the GPIB bus (1..30)</td></tr></table>"
+        "<h3>Interactive IO:</h3><table><tr><th>Instruments</th><th colspan=\"2\">Command</th></tr> "
+        "<tr><td rowspan=\"4\"><select id=\"inst\" size=\"4\" style=\"width: 9ch;\"></select><br /><button onclick=\"find()\">Find</button></td>"
+        "<td width=\"80%\"><input type=\"text\" id=\"cmd\" value=\"\" /></td><td><button onclick=\"self.cmd.value=self.pre.value\">&lt;</button>"
         "<select id=\"pre\">"));
     printOption(bp, "*IDN?");
     printOption(bp, "*RST");
     printOption(bp, "*OPC?");
     printOption(bp, "*CLS");
     printOption(bp, ":SYSTem:ERRor?");
-    bp.print(F("</select> </td> </tr> <tr> <td colspan=\"2\"> "
-        "<button onclick=\"ex('ex')\">Execute</button>"
-        "&nbsp&nbsp(<button onclick=\"ex('sd')\">Send</button> <button onclick=\"read()\">Read</button>) "
-        "</td> </tr> "
-        "<tr> <th colspan=\"2\">History</th> </tr> <tr> <td colspan=\"2\"> <textarea id=\"r\" rows=\"10\" cols=\"80\"></textarea><br /> "
-        "<button onclick=\"self.r.value=''; scroll()\">Clear</button> </td> </tr> </table> "
+    bp.print(F("</select></td></tr><tr><td colspan=\"2\">"
+        "<button onclick=\"ex(0)\">Execute</button>"
+        "&nbsp;&nbsp;(<button onclick=\"ex(1)\">Send</button> <button onclick=\"ex(2)\">Read</button>) "
+        "</td></tr>"
+        "<tr><th colspan=\"2\">History</th></tr><tr><td colspan=\"2\"><textarea id=\"r\" rows=\"10\" cols=\"80\" readonly></textarea><br /> "
+        "<button onclick=\"self.r.value=''; scroll()\">Clear</button></td></tr></table>\n"
         "<script>\nfunction tick() { fetch(\"/cnx\") .then((response) => { if (!response.ok) { return \"?\"; } return response.text(); }) .then((data) => { self.cnx.innerHTML = data; }); }\nsetInterval(tick, 5000);"
         "function find() { fetch(\"/fnd\") .then((response) => { if (!response.ok) { throw new Error(\"ERR: \" + response.statusText); } return response.text(); }) .then((data) => { self.inst.innerHTML = data; }); };\n"
-        "function ex(m) { const inst = self.inst.value; const cmd = self.cmd.value;\nif (cmd === \"\" || inst === \"\") { return; }\n"
-        "fetch(\"/\" + m + \"/\" + inst + \"/\" + cmd) .then((response) => { if (!response.ok) { throw new Error(\"ERR: \" + response.statusText); } return response.text(); }) .then((data) => { self.r.value += \"> \" + inst + \": \" + cmd + \"\\n\"; if (data !== \"\") {self.r.value += \"< \" + inst + \": \" + data + \"\\n\";}; scroll(); }); };\n"
-        "function read() { const inst = self.inst.value;\nif (inst === \"\") { return; }\n"
-        "fetch(\"/rd\" + \"/\" + inst) .then((response) => { if (!response.ok) { throw new Error(\"ERR: \" + response.statusText); } return response.text(); }) .then((data) => { self.r.value += \"< \" + inst + \": \" + data + \"\\n\"; scroll(); }); };\n"
+        "function ex(t) { const inst = self.inst.value; const cmd = self.cmd.value;\nif (inst === \"\") { alert(\"Please select an instrument\"); return; }\n"
+        "var m = \"/ex\" + t.toString() + \"/\" + inst;\n"
+        "if (t < 2) { if (cmd === \"\") { alert(\"Please enter a command\"); return; } m += \"/\" + cmd; }\n"
+        "fetch(m) .then((response) => { if (!response.ok) { throw new Error(\"ERR: \" + response.statusText); } return response.text(); })\n"
+        ".then((data) => { if (t < 2) { self.r.value += \"> \" + inst + \": \" + cmd + \"\\n\"; }\n"
+        "if ((t === 2)||((t === 0)&&(data !== \"\"))) { self.r.value += \"< \" + inst + \": \" + data + \"\\n\"; }\n"
+        "scroll(); }); };\n"
         "function scroll() { self.r.scrollTop = self.r.scrollHeight; }\n</script>\n"));
 #endif
     bp.print(F("</body></html>\n\n"));

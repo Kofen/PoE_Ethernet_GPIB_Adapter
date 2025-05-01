@@ -26,7 +26,7 @@ The file was renamed to 'prologix_server.cpp'. The code sections that were modif
 
 ## AR488_ComPorts.cpp and AR488_ComPorts.h
 
-* DEVNULL externalised to become a dependency
+* DEVNULL externalised to become a dependency (this is minor, as we do not use it, hence DEVNULL.h is commented out)
 * Added include to `EthernetStream.h`
 * `startDataPort()` version added that points to a `EthernetStream`.
 * `int maintainDataPort()` added

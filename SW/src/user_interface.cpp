@@ -164,20 +164,45 @@ bool setup_ipaddress_surveillance_and_show_address(void) {
     return true;
 }
 
-bool has_address_changed_since_start(IPAddress current_address) {
+/**
+ * @brief See if the IP address has changed since the start of the program.
+ * 
+ * Will print any messages on the debug port.
+ * 
+ * @param current_address the current IP address
+ * @param allow_reset if the address should be reset to the current address, if valid
+ * @return true when the address has changed, and a reset was not requested
+ */
+bool has_address_changed_since_start(IPAddress current_address, bool allow_reset = false) {
     if (!is_valid_IP_assigned(_previous_address) && is_valid_IP_assigned(current_address)) {
-        // I now have a valid address, DHCP was probably late.
-        // This part of the code should never be reached more than once.
+        // I used to have an invalid address (DHCP), and I now also have a valid address
+        // DHCP was probably late.
         debugPort.print(F("IP Address has been assigned: "));
         debugPort.println(current_address);
         _previous_address = current_address;
-        ethernet_has_problem = false;
         return false;
     }
-    if (current_address != _previous_address) {
-        ethernet_has_problem = true;
-        return true;
+    if (is_valid_IP_assigned(_previous_address) && is_valid_IP_assigned(current_address)) {
+        // I used to have a valid address, and I now also have a valid address
+        if (current_address != _previous_address) {
+            // The address has changed
+            debugPort.print(F("IP Address has changed to "));
+            debugPort.print(current_address);
+            if (allow_reset) {
+                // Reset the previous address to the current address
+                _previous_address = current_address;
+                debugPort.println();
+                return false;
+            } else {
+                // The address has changed, but I don't want to reset it
+                debugPort.println(F(", Please inform your clients!"));
+                return true;
+            }
+        }
+        return false;
     }
+
+    // default case: !is_valid_IP_assigned(current_address). That is handled outside this function.
     return false;
 }
 
@@ -353,6 +378,8 @@ void end_of_setup(void) {
 #endif
 
     debugPort.println(F("Setup complete."));
+    display_freeram();
+    debugPort.println("");
     
 #ifdef USE_SERIALMENU
     myMenu.ShowMenu();
@@ -391,20 +418,20 @@ void loop_serial_ui_and_led(int nrConnections) {
             debugPort.print(F("IP Address "));
             debugPort.print(current_address);
             debugPort.println(F(" is wrong. Please check DHCP!"));
-        } else if (has_address_changed_since_start(current_address)) {
+        } else if (has_address_changed_since_start(current_address, nrConnections != 0)) {
+            // Will have printed if something is wrong
             ethernet_has_problem = true;
-            debugPort.print(F("!! IP Address changed: "));
-            debugPort.print(current_address);
-            debugPort.println(F(" Please inform your clients!"));
         } else {
+            // All is OK
+            // If it was not OK before, reset the ethernet_has_problem flag, and inform the user
             if (ethernet_has_problem) {
                 debugPort.println(F("Ethernet link is OK now"));
             }
             ethernet_has_problem = false;
+        }
             
         if (ethernet_has_problem) {
-            LEDRed();
-            }
+            LEDRed();  // This is not strictly needed, as loop_led already does it, but just in case I get held up before the next loop, set it immediately.
         }
 
 #ifdef LOG_STATS_ON_CONSOLE

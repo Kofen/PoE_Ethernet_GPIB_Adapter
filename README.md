@@ -66,15 +66,20 @@ Example: `TCPIP::192.168.7.105::gpib,2::INSTR` for instrument with GPIB address 
 
 ### VXI-11.2 compatibility
 
-With the limited resources, this device is meant to work with the most common tools, like for example pyVisa. It is not a full implementation, and lacks the following advanced features:
+With the limited resources, this device is meant to work with the most common tools, like for example pyVisa. It is not a full implementation, and lacks the following advanced features (for now):
 
 - secondary instrument addresses
 - async VXI-11 operations
 - instrument locking via VXI-11
 - VXI-11 interrupts
 - the VXI-11 abort channel
+- complete end of reply handling: it only supports reading on eoi, and therefor misses correct handling of
+  - terminating character supplied in the read request packet
+  - maximum count requested in the read request packet
 
 It is discoverable via UDP, but there is no publication via mDNS (yet).
+
+Not all of that will be possible with the limited resources the device has, but let us know if you encounter any problems, and we'll look if it is possible to make the implementation more complete.
 
 ---
 

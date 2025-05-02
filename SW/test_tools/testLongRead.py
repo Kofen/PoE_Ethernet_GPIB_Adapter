@@ -7,19 +7,19 @@ TESTCONFIG = {
         "inst": "ASRL/dev/cu.usbmodem21101::INSTR",
         "p": 1,
         "type": "66332A",
-        "readings": 600  # for some reason my 66332A on FW 01.03 always returns 600 readings, even if I set it to 1
+        "readings": 100
     },
     "prologix_gateway": {
         "inst": "TCPIP::192.168.7.206::1234::SOCKET",
         "p": 1,
         "type": "66332A",
-        "readings": 600
+        "readings": 100
     },
     "vxi_gateway": {
         "inst": "TCPIP::192.168.7.206::gpib,1::INSTR",
         "p": 0,
         "type": "66332A",
-        "readings": 600
+        "readings": 100
     },    
     "direct": {
         "inst": "TCPIP::192.168.7.205::INSTR",
@@ -29,7 +29,7 @@ TESTCONFIG = {
     }
 }
 
-DEFAULT_DEVICE = "prologix_gateway"  # "vxi_gateway"  # "usb" or "direct" or "prologix_gateway" or "vxi_gateway"
+DEFAULT_DEVICE = "vxi_gateway"  # "usb" or "direct" or "prologix_gateway" or "vxi_gateway"
 
 PROLOGIX_SLEEP = 0.1  # seconds
 
@@ -47,7 +47,7 @@ def check_err(inst, prologix: bool):
         else:
             err = inst.query("SYST:ERR?")
         if not (err.startswith("+0,") or err.startswith("0,")):
-            print("Error: \"{err}\"")
+            print(f"Error: \"{err}\"")
             have_err = True
             # have_printed_err = True
         else:
@@ -128,13 +128,14 @@ def read_device(device_address: str, device_bus_address: int, device_type: str, 
         inst.write("SENS:FUNC \"VOLT\"")
         # inst.write("SENS:CURR:DET ACDC")
         # inst.write("SENS:CURR:RANG MAX")
-        inst.write("TRIG:ACQ:SOUR BUS")        
+        inst.write("TRIG:ACQ:SOUR BUS")
         inst.write("SENS:SWE:TINT 15.6E-6")
         inst.write(f"SENSE:SWEEP:POINTS {number_of_readings}")
         # inst.write("SENS:SWE:OFFS:POIN 0")
         
         # inst.write(f"TRIG:ACQ:COUN:VOLT {number_of_readings}")  # no, not this, as it averages over N samples
         inst.write("TRIG:IMM")
+        inst.write("INIT:CONT:SEQ ON")
     
     check_err(inst, prologix)        
         
@@ -167,7 +168,7 @@ def read_device(device_address: str, device_bus_address: int, device_type: str, 
     if device_type == "DMM6500":
         readcmd = f"TRAC:DATA? 1, {number_of_readings}"
     if device_type == "66332A":
-        readcmd = "FETCH:ARRAY:VOLT?"
+        readcmd = "MEAS:ARRAY:VOLT?"  # FETCH seems to be broken
     
     print("\nRetrieving...")
     if prologix:

@@ -49,5 +49,5 @@ VXI-11 DEVICE_READ returns contain 3 main flags:
 * Termination Character Seen
 * EOI Set
 
-On large replies, the latter is False. In that case, a new DEVICE_READ is issued by the client, and the server will return the next chunk of data, etc.
+On large replies, the latter is False. In that case, a new DEVICE_READ must be issued by the client, and the server will return the next chunk of data, etc.
 The data itself is considered opaque: if a large list of values is returned, any separators in the list are not aligned with the chunks.

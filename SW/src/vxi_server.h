@@ -71,7 +71,7 @@ class SCPI_handler_interface
   public:
     virtual ~SCPI_handler_interface() {} 
     // write a command to the SCPI parser or device
-    virtual void write(int address, const char *data, size_t len) = 0;
+    virtual void write(int address, const char *data, size_t len, bool is_end = true) = 0;
 
     // read a response from the SCPI parser or device and write to a Stream
 

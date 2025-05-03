@@ -90,7 +90,7 @@ class SCPI_handler : public SCPI_handler_interface {
    public:
     SCPI_handler() {}
 
-    void write(int address, const char *data, size_t len) override {
+    void write(int address, const char *data, size_t len, bool is_end = true) override {
 #ifdef DUMMY_DEVICE
         debugPort.print(F("SCPI write: "));
         printBuf(data, len);
@@ -102,11 +102,19 @@ class SCPI_handler : public SCPI_handler_interface {
         if (address == 0) return; // if controller: no writing to the bus
 
         // Send data to the GPIB bus
-        gpibBus.cfg.paddr = address;
-        gpibBus.cfg.saddr = 0xFF;  // secondary address is not used
-        if (!gpibBus.haveAddressedDevice()) gpibBus.addressDevice(address, 0xFF, TOLISTEN);
+        if (gpibBus.cfg.paddr != address) {
+            // if the address is different, we need to address the device
+            gpibBus.cfg.paddr = address;
+            gpibBus.cfg.saddr = 0xFF;  // secondary address is not used
+            if (!gpibBus.haveAddressedDevice() || !gpibBus.isDeviceAddressedToListen()) {
+                gpibBus.addressDevice(address, 0xFF, TOLISTEN);
+            }
+        }
         gpibBus.sendData(data, len);
-        gpibBus.unAddressDevice();
+        if (is_end) {
+            gpibBus.unAddressDevice();
+            gpibBus.cfg.paddr = 0xFF;  // mark as unaddressed
+        }
 #endif
     }
 
@@ -132,9 +140,14 @@ class SCPI_handler : public SCPI_handler_interface {
         bool detectEndByte = false;
         uint8_t endByte = 0;
 
-        gpibBus.cfg.paddr = address;
-        gpibBus.cfg.saddr = 0xFF;  // secondary address is not used
-        gpibBus.addressDevice(address, 0xFF, TOTALK);     // tel device 'paddr' to talk. If you do this and the device has nothing to say, you might get an error.
+        if (gpibBus.cfg.paddr != address) {
+            // if the address is different, we need to address the device
+            gpibBus.cfg.paddr = address;
+            gpibBus.cfg.saddr = 0xFF;  // secondary address is not used
+            if (!gpibBus.haveAddressedDevice() || !gpibBus.isDeviceAddressedToTalk()) {
+                gpibBus.addressDevice(address, 0xFF, TOTALK);
+            }
+        }
         enum readStopReasons stopReason;
         gpibBus.receiveData(dataStream, readWithEoi, detectEndByte, endByte, max_size, &stopReason);  // get the data from the bus and send out
         // debugPort.print(F("GPIB max size = "));
@@ -145,6 +158,8 @@ class SCPI_handler : public SCPI_handler_interface {
             return SRS_MAXSIZE;
         // for anything but max size, we need to unaddress the device
         gpibBus.unAddressDevice();
+        gpibBus.cfg.paddr = 0xFF;  // mark as unaddressed
+
         if (stopReason == RS_EOI) {
             // EOI signal detected
             return SRS_EOI;
@@ -229,6 +244,7 @@ void setup() {
         debugPort.print(F("The devices's default address points to GPIB address "));
         debugPort.println(gpibBus.cfg.caddr);
     }
+    gpibBus.cfg.paddr = 0xFF;  // no device is unadressed yet
     // Set up the IP address    
     IPAddress ip = IPAddress(ipbuff);
     Ethernet.init(7);

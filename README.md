@@ -100,7 +100,7 @@ Also, be aware that the GPIB bus is a shared bus. Even if you have connected to 
 
 ### Large replies or large requests
 
-Both VXI-11 and prologix support large replies and large requests.
+Both VXI-11 and prologix support large replies and large commands and requests. Although the gateway supports it, be aware that instruments themselves often have rather low limits with regards to the the size of the commands and requests. Often it is best to send commands one at a time.
 
 ### Prologix and pyvisa
 
@@ -114,7 +114,7 @@ There are 3 parts:
 
 - the **LED**. It indicates different states: blue for waiting for DHCP, red for error in network or DHCP, green flashing for idle, green/blue flashing for busy
 - the **Web Server** (on port 80): it shows some help texts and the number of connected clients. It is not (yet) interactive.
-- the **serial console** (via USB): This console shows startup information, ports used, and has a small menu. 
+- the **serial console** (via USB): This console shows startup information, ports used, and has a small menu.
 
 ### The serial menu
 

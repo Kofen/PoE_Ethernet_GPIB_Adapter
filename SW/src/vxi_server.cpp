@@ -230,15 +230,20 @@ bool VXI_Server::handle_packet(EthernetClient &client, int slot, bool overflow =
 void VXI_Server::create_link(EthernetClient &client, int slot)
 {
     /*  The data field in a link request should contain a string
-        with the name of the requesting device. It may already
-        be null-terminated, but just in case, we will put in
-        the terminator.  */
+        with the name of the requesting device. */
     
     // Use of shared memory zones:
     // create_request points to the static buffer vxi_read_buffer
     // create_response points to the static buffer vxi_send_buffer
 
     memset(create_response, 0, sizeof(create_response_packet));
+
+    uint32_t len = create_request->data_len;
+    if (len >= MAX_WRITE_REQUEST_DATA_SIZE) {
+        len = MAX_WRITE_REQUEST_DATA_SIZE - 1; // I do not have more than that. The input buffer will have been truncated before.
+        // And I remove 1 extra to add a null terminator, as I do string operations below and the size if never that big
+    }
+    create_request->data[len] = 0; // make sure the string is null terminated
 
     if (!scpi_handler.claim_control()) {
         create_response->rpc_status = rpc::SUCCESS;
@@ -250,11 +255,10 @@ void VXI_Server::create_link(EthernetClient &client, int slot)
         return;
     }
 
-    create_request->data[create_request->data_len] = 0; // prepare C style string operations below
 #ifdef LOG_VXI_DETAILS
-    debugPort.print(F("CREATE LINK request from \""));
-    debugPort.print(create_request->data);
-    debugPort.print(F("\" on port "));
+    debugPort.print(F("CREATE LINK request from "));
+    printBuf(create_request->data, len);
+    debugPort.print(F(" on port "));
     debugPort.print((uint32_t)vxi_port);
     debugPort.print(F(" -> LID="));
     debugPort.print(slot);
@@ -262,7 +266,7 @@ void VXI_Server::create_link(EthernetClient &client, int slot)
 #endif
     // interpret and store the request data so that I can use it on the GPIB bus
     // make lowercase
-    for(int i = 0; i < create_request->data_len; i++) {
+    for(int i = 0; i < len; i++) {
         create_request->data[i] = tolower(create_request->data[i]);
     }
     int my_nr = 0;
@@ -273,7 +277,7 @@ void VXI_Server::create_link(EthernetClient &client, int slot)
                     create_request->data[2] == 'i' &&
                     create_request->data[3] == 'b')) {
         char *cptr;
-        for(int i = 4; i < create_request->data_len; i++) {
+        for(int i = 4; i < len; i++) {
             if (create_request->data[i] == 0) {
                 break;
             }
@@ -350,13 +354,13 @@ void VXI_Server::read(EthernetClient &client, int slot)
     debugPort.print((uint32_t)vxi_port);
     debugPort.print(F("; gpib_address="));
     debugPort.print(addresses[slot]);
-    debugPort.print(F("; data len = "));
+    debugPort.print(F("; data_len = "));
     debugPort.print((uint32_t)vxiStream.len());
-    debugPort.print(F("; max length = "));
+    debugPort.print(F("; max_len="));
     debugPort.print(max_len);
-    debugPort.print(F("; stop reason = "));
+    debugPort.print(F("; stop_reason="));
     debugPort.print(rv);    
-    debugPort.print(F("; data = "));
+    debugPort.print(F("; data="));
     printBuf(read_response->data, (int)vxiStream.len());    
 #endif
 
@@ -382,15 +386,22 @@ void VXI_Server::write(EthernetClient &client, int slot)
     
     uint32_t len = write_request->data_len;
     if (len >= MAX_WRITE_REQUEST_DATA_SIZE) {
-        len = MAX_WRITE_REQUEST_DATA_SIZE - 1; // I do not have more than that. The input buffer will have been truncated before.
+        len = MAX_WRITE_REQUEST_DATA_SIZE; // I do not have more than that. The input buffer will have been truncated before.
     }
 
     uint32_t wlen = len;
-    // right trim. Some instruments don't like \r\n
-    while (wlen > 0 && isspace(write_request->data[wlen - 1])) {
-        wlen--;
-    }    
-    write_request->data[wlen] = 0; // make sure it is null terminated
+    
+    // Is this the end of the command?
+    uint32_t flags = (uint32_t)write_request->flags;
+
+    bool is_eoi = (flags & 8) != 0;
+    if (is_eoi) { 
+        // this is the end of the command, so I can trim the data
+        // right trim. Some instruments don't like \r\n
+        while (wlen > 0 && isspace(write_request->data[wlen - 1])) {
+            wlen--;
+        }
+    }
 
 #ifdef LOG_VXI_DETAILS
     debugPort.print(F("WRITE DATA LID="));
@@ -399,11 +410,13 @@ void VXI_Server::write(EthernetClient &client, int slot)
     debugPort.print((uint32_t)vxi_port);
     debugPort.print(F("; gpib_address="));
     debugPort.print(addresses[slot]);        
-    debugPort.print(F("; data = "));
+    debugPort.print(F("; is_eoi="));
+    debugPort.print(is_eoi);        
+    debugPort.print(F("; data="));
     printBuf(write_request->data, (int)wlen);
 #endif
     /*  Parse and respond to the SCPI command  */
-    scpi_handler.write(addresses[slot], write_request->data, wlen);
+    scpi_handler.write(addresses[slot], write_request->data, wlen, is_eoi);
 
     /*  Generate the response  */
     memset(write_response, 0, sizeof(write_response_packet));

@@ -7,29 +7,33 @@ TESTCONFIG = {
         "inst": "ASRL/dev/cu.usbmodem21101::INSTR",
         "p": 1,
         "type": "66332A",
-        "readings": 100
+        "readings": 0,
+        "writes": 10
     },
     "prologix_gateway": {
         "inst": "TCPIP::192.168.7.206::1234::SOCKET",
         "p": 1,
         "type": "66332A",
-        "readings": 100
+        "readings": 100,
+        "writes": 100
     },
     "vxi_gateway": {
         "inst": "TCPIP::192.168.7.206::gpib,1::INSTR",
         "p": 0,
         "type": "66332A",
-        "readings": 100
+        "readings": 0,
+        "writes": 30
     },    
     "direct": {
         "inst": "TCPIP::192.168.7.205::INSTR",
         "p": 0,
         "type": "DMM6500",
-        "readings": 256
+        "readings": 256,
+        "writes": 256
     }
 }
 
-DEFAULT_DEVICE = "vxi_gateway"  # "usb" or "direct" or "prologix_gateway" or "vxi_gateway"
+DEFAULT_DEVICE = "usb"  # "usb" or "direct" or "prologix_gateway" or "vxi_gateway"
 
 PROLOGIX_SLEEP = 0.1  # seconds
 
@@ -56,19 +60,14 @@ def check_err(inst, prologix: bool):
             have_err = False
 
 
-def read_device(device_address: str, device_bus_address: int, device_type: str, number_of_readings: int):
-    prologix = False
+def init_device(device_address: str, device_bus_address: int, prologix: bool):
     
-    if device_bus_address > 0:
-        prologix = True
-        
     print("Device type: ", device_type)
-    print("Number of readings to do: ", number_of_readings)
     print("Device address: ", device_address)
     if prologix:
         print("Device bus address for prologix: ", device_bus_address)
-    print("Connecting to device...")
-
+        
+    print("Connecting to device...")    
     rm = pyvisa.ResourceManager()
     inst = rm.open_resource(device_address)
     inst.timeout = 10000  # milli-seconds
@@ -94,14 +93,72 @@ def read_device(device_address: str, device_bus_address: int, device_type: str, 
     
     check_err(inst, prologix)
     
-    print("Identify device...")
-    print("Device name: ", end='')
+    return rm, inst
+
+
+def write_device(device_address: str, device_bus_address: int, device_type: str, number_of_writes: int):
+    prologix = False
+    
+    if device_bus_address > 0:
+        prologix = True
+        
+    if number_of_writes < 1:
+        return
+        
+    print("WRITING DEVICE *********************")
+    print("Number of writes to do: ", number_of_writes)
+    
+    rm, inst = init_device(device_address, device_bus_address, prologix)
+    
+    print("Doing writes...")
+    if device_type == "66332A":
+        cmd = "OUTP ON;VOLT 0;"
+        m = 20.0 / number_of_writes
+        for i in range(number_of_writes):
+            cmd += f"VOLT {(i + 1) * m:.3f};"
+
+    inst.write(cmd)
+    time.sleep(1)
+    print("Read Errors if any...")
+    check_err(inst, prologix)
+    print("Read Output...")
+
+    if device_type == "66332A":
+        readcmd = "MEAS:VOLT?"
+        
     if prologix:
-        inst.write("*IDN?")
+        inst.write(readcmd)
         time.sleep(PROLOGIX_SLEEP)
-        print(inst.query("++read eoi"))
+        try:
+            voltage = inst.query("++read eoi")
+        except Exception as e:
+            print("Error reading data: ", e)
+            voltage = ""
     else:
-        print(inst.query("*IDN?"))
+        voltage = inst.query(readcmd)
+    
+    print("Voltage read: ", voltage)    
+        
+    check_err(inst, prologix)
+    # final error status check
+    check_err(inst, prologix)
+
+    inst.close()
+    rm.close()
+
+
+def read_device(device_address: str, device_bus_address: int, device_type: str, number_of_readings: int):
+    prologix = False
+    
+    if device_bus_address > 0:
+        prologix = True
+        
+    if number_of_readings < 1:
+        return
+        
+    print("READING DEVICE *********************")
+    print("Number of readings to do: ", number_of_readings)    
+    rm, inst = init_device(device_address, device_bus_address, prologix)
 
     print("Initialising measurements...")
     interval_in_ms = 100
@@ -207,20 +264,25 @@ if __name__ == '__main__':
     DEFAULT_P = TESTCONFIG[DEFAULT_DEVICE]["p"]
     DEFAULT_TYPE = TESTCONFIG[DEFAULT_DEVICE]["type"]
     DEFAULT_READINGS = TESTCONFIG[DEFAULT_DEVICE]["readings"]
+    DEFAULT_WRITES = TESTCONFIG[DEFAULT_DEVICE]["writes"]
     
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Test long read via VXI-11, USB prologix or Ethernet prologix.",
+    parser = argparse.ArgumentParser(description="Test long Reads or Writes via VXI-11, USB prologix or Ethernet prologix.",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("instrument", type=str, nargs="?", default=DEFAULT_INST, help="The device to use for tests. Must be a Visa compatible connection string.")
     parser.add_argument("-p", type=int, default=DEFAULT_P, help="The device address on the bus. Used with prologix.")
     parser.add_argument("-t", choices=['DMM6500', "K2000", "6332B"], default=DEFAULT_TYPE, help="The instrument type.")
-    parser.add_argument("-n", type=int, default=DEFAULT_READINGS, help="Number of readings.")
+    parser.add_argument("-r", type=int, default=DEFAULT_READINGS, help="Number of readings.")
+    parser.add_argument("-w", type=int, default=DEFAULT_WRITES, help="Number of writes.")
     parser.epilog = "VXI-11 address example: \"TCPIP::192.168.1.84::gpib,1::INSTR\". USB Prologix address example: \"ASRL9::INSTR\". Ethernet Prologix address example: \"TCPIP::192.168.1.84::1234::SOCKET\". This code is NOT compatible with a RAW socket device, as I re-use the RAW socket address style for prologix."
     args = parser.parse_args()
         
     device_bus_address = args.p
     device_address = args.instrument
     device_type = args.t
-    number_of_readings = args.n
+    number_of_readings = args.r
+    number_of_writes = args.w
     read_device(device_address, device_bus_address, device_type, number_of_readings)
+    write_device(device_address, device_bus_address, device_type, number_of_writes)
+
     print("Done.")

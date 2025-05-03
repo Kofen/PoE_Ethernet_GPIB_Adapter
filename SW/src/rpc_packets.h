@@ -218,9 +218,9 @@ struct create_request_packet {
     char data[];                     ///< name of the instrument (e.g., instr0), see MAX_INSTRUMENT_NAME_LENGTH
 };
 
-#define MAX_INSTRUMENT_NAME_LENGTH (VXI_READ_SIZE - (14*4)) ///< maximum length of the instrument name
+#define MAX_INSTRUMENT_NAME_LENGTH (VXI_READ_SIZE - (14*4) - 4) ///< maximum length of the instrument name
 
-static_assert((sizeof(create_request_packet) + MAX_INSTRUMENT_NAME_LENGTH) == VXI_READ_SIZE, "create_request_packet is wrong size");
+static_assert((sizeof(create_request_packet) + MAX_INSTRUMENT_NAME_LENGTH) == VXI_READ_SIZE - 4, "create_request_packet is wrong size");
 
 /*!
   @brief  Structure of the VXI_11_CREATE_LINK response packet.
@@ -243,7 +243,7 @@ struct create_response_packet {
     big_endian_32_t max_receive_size; ///< maximum amount of data that can be received on each write command, see MAX_WRITE_REQUEST_DATA_SIZE
 };
 
-static_assert(sizeof(create_response_packet) < VXI_SEND_SIZE, "create_response_packet is too big");
+static_assert(sizeof(create_response_packet) < VXI_SEND_SIZE - 4, "create_response_packet is too big");
 
 /*!
   @brief  Structure of the VXI_11_DESTROY_LINK request packet.
@@ -265,7 +265,7 @@ struct destroy_request_packet {
     big_endian_32_t link_id;         ///< Unique link id generated for this session (see CREATE_LINK)
 };
 
-static_assert(sizeof(destroy_request_packet) < VXI_READ_SIZE, "destroy_request_packet is too big");
+static_assert(sizeof(destroy_request_packet) < VXI_READ_SIZE - 4, "destroy_request_packet is too big");
 
 /*!
   @brief  Structure of the VXI_11_DESTROY_LINK response packet.
@@ -283,7 +283,7 @@ struct destroy_response_packet {
     big_endian_32_t error;       ///< Error code (see rpc::errors)
 };
 
-static_assert(sizeof(destroy_response_packet) < VXI_SEND_SIZE, "destroy_response_packet is too big");
+static_assert(sizeof(destroy_response_packet) < VXI_SEND_SIZE - 4, "destroy_response_packet is too big");
 
 /*!
   @brief  Structure of the VXI_11_DEV_READ request packet.
@@ -312,7 +312,7 @@ struct read_request_packet {
     char term_char;                  ///< The "end" character (we will ignore)
 };
 
-static_assert(sizeof(read_request_packet) < VXI_READ_SIZE, "read_request_packet is too big");
+static_assert(sizeof(read_request_packet) < VXI_READ_SIZE - 4, "read_request_packet is too big");
 
 /*!
   @brief  Structure of the VXI_11_DEV_READ response packet.
@@ -334,9 +334,9 @@ struct read_response_packet {
     char data[];                 ///< The data returned, see MAX_READ_RESPONSE_DATA_SIZE
 };
 
-#define MAX_READ_RESPONSE_DATA_SIZE (VXI_SEND_SIZE - (9*4)) ///< Maximum size of the data returned in a read response
+#define MAX_READ_RESPONSE_DATA_SIZE (VXI_SEND_SIZE - (9*4) - 4) ///< Maximum size of the data returned in a read response
 
-static_assert((sizeof(read_response_packet) + MAX_READ_RESPONSE_DATA_SIZE) == VXI_SEND_SIZE, "read_response_packet is wrong size");
+static_assert((sizeof(read_response_packet) + MAX_READ_RESPONSE_DATA_SIZE) == VXI_SEND_SIZE - 4, "read_response_packet is wrong size");
 
 /*!
   @brief  Structure of the VXI_11_DEV_WRITE request packet.
@@ -360,14 +360,14 @@ struct write_request_packet {
     big_endian_32_t link_id;         ///< Unique link id generated for this session (see CREATE_LINK)
     big_endian_32_t io_timeout;      ///< How long to wait before timing out the data request (we will ignore)
     big_endian_32_t lock_timeout;    ///< How long to wait before timing out a lock request (we will ignore)
-    big_endian_32_t flags;           ///< Used to indicate whether an "end" character is supplied (we will ignore)
+    big_endian_32_t flags;           ///< Used to indicate whether an "end" character is supplied
     big_endian_32_t data_len;        ///< Length of the data sent, should be < MAX_WRITE_REQUEST_DATA_SIZE
     char data[];                     ///< The data sent, see MAX_WRITE_REQUEST_DATA_SIZE
 };
 
-#define MAX_WRITE_REQUEST_DATA_SIZE (VXI_READ_SIZE - (15*4)) ///< Maximum size of the data sent in a write request. This is also noted in the README.md, so change it there if needed.
+#define MAX_WRITE_REQUEST_DATA_SIZE (VXI_READ_SIZE - (15*4) - 4) ///< Maximum size of the data sent in a write request.
 
-static_assert((sizeof(write_request_packet) + MAX_WRITE_REQUEST_DATA_SIZE) == VXI_READ_SIZE, "write_request_packet is wrong size");
+static_assert((sizeof(write_request_packet) + MAX_WRITE_REQUEST_DATA_SIZE) == VXI_READ_SIZE - 4, "write_request_packet is wrong size");
 
 /*!
   @brief  Structure of the VXI_11_DEV_WRITE response packet.
@@ -386,7 +386,7 @@ struct write_response_packet {
     big_endian_32_t size;        ///< Number of bytes sent
 };
 
-static_assert(sizeof(write_response_packet) < VXI_SEND_SIZE, "write_response_packet is too big");
+static_assert(sizeof(write_response_packet) < VXI_SEND_SIZE - 4, "write_response_packet is too big");
 
 /*  constant variables used to access the data buffers as the various structures defined above  */
 

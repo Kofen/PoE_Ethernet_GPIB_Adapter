@@ -7,7 +7,7 @@
 #include "rpc_packets.h"
 #include "rpc_enums.h"
 
-/*  The definition of the buffers to hold packet data	*/
+/*  The definition of the buffers to hold packet data */
 
 uint8_t udp_read_buffer[UDP_READ_SIZE]; // only for udp bind requests
 uint8_t udp_send_buffer[UDP_SEND_SIZE]; // only for udp bind responses
@@ -81,19 +81,18 @@ uint32_t get_vxi_packet(EthernetClient &tcp)
     return_len = (vxi_request_prefix->length & 0x7fffffff); // mask out the FRAG bit
 
     if (return_len > 4) {
-        if (return_len >= VXI_READ_SIZE - 4) {
+        // remove 4 because I already read 4 into the buffer
+        if (return_len >= sizeof(vxi_read_buffer) - 4) {
             return_len = 0xffffffff; // packet too large
-            read_len = (uint32_t)(VXI_READ_SIZE - 4); // do not read more than the buffer can hold
+            read_len = (uint32_t)(sizeof(vxi_read_buffer) - 4); // do not read more than the buffer can hold
         }
         else {
             read_len = return_len;
         }
 
-        tcp.readBytes(vxi_request_packet_buffer, read_len);
-
-        if (read_len >= VXI_READ_SIZE - 4) {
-            return 0xffffffff; // packet too large
-        }
+        tcp.readBytes(vxi_request_packet_buffer, read_len); 
+    } else {
+        return_len = 0; // no data to read
     }
 
     return return_len;

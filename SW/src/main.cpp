@@ -110,12 +110,12 @@ class SCPI_handler : public SCPI_handler_interface {
 #endif
     }
 
-    bool read(int address, vxiBufStream &dataStream) override {
+    SCPI_handler_read_stop_reasons read(int address, vxiBufStream &dataStream, size_t max_size) override {
 #ifdef DUMMY_DEVICE
         // Simulate a device response
         uint8_t data[] = "SCPI response";
         dataStream.write(data, strlen(data));
-        return true;
+        return SRS_EOI;
 #else
         if (address == 0) {
             // maybe we need to address a device directly on the bus
@@ -125,7 +125,7 @@ class SCPI_handler : public SCPI_handler_interface {
         if (address == 0) {
             uint8_t deviceName[] = DEVICE_NAME;
             dataStream.write(deviceName, sizeof(DEVICE_NAME) - 1); // remove the null terminator
-            return true;  // no address
+            return SRS_EOI;
         }
         
         bool readWithEoi = true;
@@ -135,9 +135,32 @@ class SCPI_handler : public SCPI_handler_interface {
         gpibBus.cfg.paddr = address;
         gpibBus.cfg.saddr = 0xFF;  // secondary address is not used
         gpibBus.addressDevice(address, 0xFF, TOTALK);     // tel device 'paddr' to talk. If you do this and the device has nothing to say, you might get an error.
-        gpibBus.receiveData(dataStream, readWithEoi, detectEndByte, endByte);  // get the data from the bus and send out
+        enum readStopReasons stopReason;
+        gpibBus.receiveData(dataStream, readWithEoi, detectEndByte, endByte, max_size, &stopReason);  // get the data from the bus and send out
+        // debugPort.print(F("GPIB max size = "));
+        // debugPort.print(max_size);
+        // debugPort.print(F("; stop reason= "));
+        // debugPort.println(stopReason);
+        if (stopReason == RS_MAXSIZE)
+            return SRS_MAXSIZE;
+        // for anything but max size, we need to unaddress the device
         gpibBus.unAddressDevice();
-        return true;
+        if (stopReason == RS_EOI) {
+            // EOI signal detected
+            return SRS_EOI;
+        } else if (stopReason == RS_EOT) {
+            // EOT signal detected
+            return SRS_END;
+        } else if (stopReason == RS_EB) {
+            // End Byte detected
+            return SRS_END;
+        } else if (stopReason == RS_TIMEOUT) {
+            // Timeout detected
+            return SRS_TIMEOUT;
+        } else if (stopReason == RS_NONE) {
+            // No stop reason detected
+            return SRS_NONE;
+        } else return SRS_ERROR;
 #endif
     }
 

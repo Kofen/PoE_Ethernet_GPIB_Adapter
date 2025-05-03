@@ -100,9 +100,7 @@ Also, be aware that the GPIB bus is a shared bus. Even if you have connected to 
 
 ### Large replies or large requests
 
-The limited memory of the device puts limitations on the size of the commands and queries and the replies. The device will not accept commands or queries bigger than 196 bytes, and replies bigger than roughly Y **(TODO)** bytes. In case of overflow, the client will be informed via VXI signalling.
-
-The prologix service does not have this limitation, as it it built on a simpler protocol, and uses streaming.
+Both VXI-11 and prologix support large replies and large requests.
 
 ### Prologix and pyvisa
 

@@ -341,7 +341,7 @@ void VXI_Server::read(EthernetClient &client, int slot)
     memset(read_response, 0, sizeof(read_response_packet));
     // If I surpass my max size, I just cut off and the client will have to issue another read 
     vxiBufStream vxiStream(read_response->data, max_len);  ///< using the static buffer's data area
-    bool rv = scpi_handler.read(addresses[slot], vxiStream);
+    SCPI_handler_read_stop_reasons rv = scpi_handler.read(addresses[slot], vxiStream, max_len);
     // FIXME handle error codes, maybe even pick up errors from the SCPI Parser
 #ifdef LOG_VXI_DETAILS
     debugPort.print(F("READ DATA LID="));
@@ -354,15 +354,15 @@ void VXI_Server::read(EthernetClient &client, int slot)
     debugPort.print((uint32_t)vxiStream.len());
     debugPort.print(F("; max length = "));
     debugPort.print(max_len);
-    debugPort.print(F("; had_overflow = "));
-    debugPort.print(vxiStream.had_overflow());    
+    debugPort.print(F("; stop reason = "));
+    debugPort.print(rv);    
     debugPort.print(F("; data = "));
     printBuf(read_response->data, (int)vxiStream.len());    
 #endif
 
     read_response->rpc_status = rpc::SUCCESS;
     read_response->error = rpc::NO_ERROR;
-    if (vxiStream.had_overflow()) {
+    if (rv == SRS_MAXSIZE) {
         read_response->reason = 0; // tell the user to read again
     } else {
         read_response->reason = rpc::END;

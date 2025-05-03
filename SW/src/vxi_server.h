@@ -54,6 +54,15 @@ class vxiBufStream : public Stream {
     bool _had_overflow = false;
 };
 
+enum SCPI_handler_read_stop_reasons {
+    SRS_NONE = 0,
+    SRS_MAXSIZE,
+    SRS_EOI,
+    SRS_END,
+    SRS_TIMEOUT,
+    SRS_ERROR
+};
+
 /*!
   @brief  Interface with the devices.
 */
@@ -64,8 +73,9 @@ class SCPI_handler_interface
     // write a command to the SCPI parser or device
     virtual void write(int address, const char *data, size_t len) = 0;
 
-    // read a response from the SCPI parser or device and write to a Stream (thereby allowing large replies)
-    virtual bool read(int address, vxiBufStream &dataStream) = 0;    
+    // read a response from the SCPI parser or device and write to a Stream
+
+    virtual SCPI_handler_read_stop_reasons read(int address, vxiBufStream &dataStream, size_t max_size) = 0;    
     
     // claim_control() should return true if the SCPI parser is ready to accept a command
     virtual bool claim_control() = 0;

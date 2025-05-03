@@ -527,7 +527,7 @@ bool GPIBbus::sendCmd(uint8_t cmdByte) {
  * Readbreak:
  * 7 - command received via serial
  */
-bool GPIBbus::receiveData(Stream &dataStream, bool detectEoi, bool detectEndByte, uint8_t endByte) {
+bool GPIBbus::receiveData(Stream &dataStream, bool detectEoi, bool detectEndByte, uint8_t endByte, size_t maxSize = 0, readStopReasons *stopReason = NULL) {
 
   uint8_t bytes[3] = { 0 };  // Received byte buffer
   uint8_t eor = cfg.eor & 7;
@@ -535,6 +535,10 @@ bool GPIBbus::receiveData(Stream &dataStream, bool detectEoi, bool detectEndByte
   bool readWithEoi = false;
   bool eoiDetected = false;
   enum gpibHandshakeStates state = HANDSHAKE_COMPLETE;
+
+  enum readStopReasons stopReasonValue = RS_NONE;
+  if (stopReason) *stopReason = stopReasonValue;
+  if (cfg.eot_en && maxSize > 0) maxSize--;  // EOT character might get added to the end of the string
 
   endByte = endByte;  // meaningless but defeats vcompiler warning!
 
@@ -581,17 +585,26 @@ bool GPIBbus::receiveData(Stream &dataStream, bool detectEoi, bool detectEndByte
   while (state == HANDSHAKE_COMPLETE) {
 
     // txBreak > 0 indicates break condition
-    if (txBreak) break;
+    if (txBreak) {
+      stopReasonValue = RS_BREAK;
+      break;
+    }
 
     // ATN asserted
-    if (isAsserted(ATN_PIN)) break;
+    if (isAsserted(ATN_PIN)) {
+      stopReasonValue = RS_ATN;
+      break;
+    }
 
     // Read the next character on the GPIB bus
     state = readByte(&bytes[0], readWithEoi, &eoiDetected);
 
 
     // If IFC or ATN asserted then break here
-    if ((state == IFC_ASSERTED) || (state == ATN_ASSERTED)) break;
+    if ((state == IFC_ASSERTED) || (state == ATN_ASSERTED)) {
+      stopReasonValue = RS_ATN;
+      break;
+    }
 
     // If successfully received character
     if (state == HANDSHAKE_COMPLETE) {
@@ -604,17 +617,30 @@ bool GPIBbus::receiveData(Stream &dataStream, bool detectEoi, bool detectEndByte
 
       // Byte counter
       x++;
-
+   
       // EOI detection enabled and EOI detected?
       if (readWithEoi) {
-        if (eoiDetected) break;
+        if (eoiDetected) {
+          stopReasonValue = RS_EOI;
+          break;
+        }
       } else {
         // Has a termination sequence been found ?
         if (detectEndByte) {
-          if (bytes[0] == endByte) break;
+          if (bytes[0] == endByte) {
+            stopReasonValue = RS_EB;
+            break;
+          }
         } else {
-          if (isTerminatorDetected(bytes, eor)) break;
+          if (isTerminatorDetected(bytes, eor)) {
+            stopReasonValue = RS_EOR;
+            break;
+          }
         }
+      }
+      if ((maxSize > 0) && (x >= maxSize)) {
+        stopReasonValue = RS_MAXSIZE;
+        break;
       }
 
       // Shift last three bytes in memory
@@ -622,6 +648,7 @@ bool GPIBbus::receiveData(Stream &dataStream, bool detectEoi, bool detectEndByte
       bytes[1] = bytes[0];
     } else {
       // Stop (error or timeout)
+      stopReasonValue = RS_TIMEOUT;
       break;
     }
   }
@@ -677,6 +704,8 @@ bool GPIBbus::receiveData(Stream &dataStream, bool detectEoi, bool detectEndByte
 #ifdef DEBUG_GPIBbus_RECEIVE
   DB_PRINT(F("done."), "");
 #endif
+
+  if (stopReason) *stopReason = stopReasonValue;
 
   if (state == HANDSHAKE_COMPLETE) {
     return OK;

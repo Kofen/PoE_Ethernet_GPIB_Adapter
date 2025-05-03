@@ -45,8 +45,8 @@ enum packet_buffer_sizes {
     UDP_SEND_SIZE = 28,  ///< The UDP bind response should be 24 or 28 bytes
     TCP_READ_SIZE = 44,  ///< The TCP bind request should be 40 bytes + 4 bytes for prefix
     TCP_SEND_SIZE = 32,  ///< The TCP bind response should be 24 or 28 bytes + 4 bytes for prefix
-    VXI_READ_SIZE = 256, ///< The VXI requests should never exceed 200 bytes, but extra allowed
-    VXI_SEND_SIZE = 1024  ///< The individual VXI responses
+    VXI_READ_SIZE = 1024,///< The VXI requests size, this influences maxRecvSize / max_receive_size / MAX_WRITE_REQUEST_DATA_SIZE
+    VXI_SEND_SIZE = 1024 ///< The VXI response size, this influences MAX_READ_RESPONSE_DATA_SIZE
 };
 
 /*  declaration of data buffers  */
@@ -240,7 +240,7 @@ struct create_response_packet {
     big_endian_32_t error;            ///< Error code (see rpc::errors)
     big_endian_32_t link_id;          ///< A unique link id to be used by subsequent calls in this session
     big_endian_32_t abort_port;       ///< Port number on which the device will listen for an asynchronous abort request
-    big_endian_32_t max_receive_size; ///< maximum amount of data that can be received on each write command
+    big_endian_32_t max_receive_size; ///< maximum amount of data that can be received on each write command, see MAX_WRITE_REQUEST_DATA_SIZE
 };
 
 static_assert(sizeof(create_response_packet) < VXI_SEND_SIZE, "create_response_packet is too big");
@@ -305,7 +305,7 @@ struct read_request_packet {
     big_endian_32_t verifier_l;      ///< Security data (not used in this context)
     big_endian_32_t verifier_h;      ///< Security data (not used in this context)
     big_endian_32_t link_id;         ///< Unique link id generated for this session (see CREATE_LINK)
-    big_endian_32_t request_size;    ///< Maximum amount of data requested (we will assume that we never send more than can be received))
+    big_endian_32_t request_size;    ///< Maximum amount of data requested, also see MAX_READ_RESPONSE_DATA_SIZE
     big_endian_32_t io_timeout;      ///< How long to wait before timing out the data request (we will ignore)
     big_endian_32_t lock_timeout;    ///< How long to wait before timing out a lock request (we will ignore)
     big_endian_32_t flags;           ///< Used to indicate whether an "end" character is supplied (we will ignore)

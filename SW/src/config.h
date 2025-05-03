@@ -44,7 +44,7 @@
 // if you activate this, the serial menu will be messier. 
 // Only activate this when you want to see memory usage 
 // and other details in auto refresh on the console.
-// #define LOG_STATS_ON_CONSOLE
+#define LOG_STATS_ON_CONSOLE
 
 // EEPROM use: 
 // Writing the 24AA256 is somehow broken, so we can also write via the GPIB configuration

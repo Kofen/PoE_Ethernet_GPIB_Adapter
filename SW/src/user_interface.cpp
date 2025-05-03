@@ -353,6 +353,8 @@ void end_of_setup(void) {
 #endif
 
     debugPort.println(F("Setup complete."));
+    display_freeram();
+    debugPort.println("");
     
 #ifdef USE_SERIALMENU
     myMenu.ShowMenu();

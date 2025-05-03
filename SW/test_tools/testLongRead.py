@@ -19,7 +19,7 @@ TESTCONFIG = {
         "inst": "TCPIP::192.168.7.206::gpib,1::INSTR",
         "p": 0,
         "type": "66332A",
-        "readings": 89
+        "readings": 100
     },    
     "direct": {
         "inst": "TCPIP::192.168.7.205::INSTR",
@@ -72,8 +72,12 @@ def read_device(device_address: str, device_bus_address: int, device_type: str, 
     rm = pyvisa.ResourceManager()
     inst = rm.open_resource(device_address)
     inst.timeout = 10000  # milli-seconds
-    inst.read_termination = '\n'
-    inst.write_termination = '\n'
+    if prologix:
+        inst.read_termination = "\n"
+        inst.write_termination = "\n"
+    else:
+        inst.read_termination = None  # '\n'
+        inst.write_termination = None  # '\n'
 
     print("Init communication with device and resetting device...")
 

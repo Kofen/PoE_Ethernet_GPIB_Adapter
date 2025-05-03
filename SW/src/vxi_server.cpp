@@ -2,35 +2,6 @@
 #include "rpc_enums.h"
 #include "rpc_packets.h"
 
-// !!!!!!!!!!!! WIP, do not use yet !!!!!!!!!!!!
-//
-// FIXME: this is wrong, we should either use stop and go, either store the data in a buffer and return it chunk wise at each new read request.
-
-void vxiBufStream::flushVXI(bool close = false) {
-
-    debugPort.print(F("READ DATA LID="));
-    debugPort.print(slot);
-    debugPort.print(F("; data length = "));
-    debugPort.print((uint32_t)buffer_pos);
-    debugPort.print(F("; total data length = "));
-    debugPort.println((uint32_t)total_len);
-
-    memset(read_response, 0, sizeof(read_response_packet));
-
-    read_response->rpc_status = rpc::SUCCESS;
-    read_response->error = rpc::NO_ERROR;
-    if (close) {
-        read_response->reason = rpc::END;
-    } else {
-        read_response->reason = 0;
-    }
-    read_response->data_len = (uint32_t)buffer_pos;
-    memcpy(read_response->data, buffer, buffer_pos);
-
-    send_vxi_packet(tcp, sizeof(read_response_packet) + buffer_pos);
-    buffer_pos = 0;  // clear the buffer
-}
-
 
 VXI_Server::VXI_Server(SCPI_handler_interface &scpi_handler)
     : scpi_handler(scpi_handler)
@@ -169,10 +140,7 @@ int VXI_Server::loop()
             // TODO: make this work in a non blocking way, but then you'd need non-static memory buffers
             uint32_t len = get_vxi_packet(clients[i]);
 
-            if (len >= VXI_READ_SIZE - 4) {
-                // error in reading the packet
-                overflow = true;
-            }
+            // do not handle overflow for now, let the protocol handle it, as there is checking on max_receive_size
             if (len != 0) {
                 bClose = handle_packet(clients[i], i, overflow);
             }
@@ -213,7 +181,7 @@ bool VXI_Server::handle_packet(EthernetClient &client, int slot, bool overflow =
 #endif
 
     } else if (overflow) {
-        rc = rpc::GARBAGE_ARGS;
+        rc = rpc::GARBAGE_ARGS; // this is probably not the right error code, the reason for overflow can be anything
         bClose = true;
 #ifdef LOG_VXI_DETAILS
         debugPort.print(F("ERROR: Buffer overflow on inbound VXI packet\n"));
@@ -359,12 +327,20 @@ void VXI_Server::destroy_link(EthernetClient &client, int slot)
 void VXI_Server::read(EthernetClient &client, int slot)
 {
     // This is where we read from the device
-
-    // TODO decide on stop-and-go or buffering. See https://github.com/Kofen/PoE_Ethernet_GPIB_Adapter/issues/7#issuecomment-2848003079
     
-    // The code below does not work properly, because the DEVICE_READ request should control the buffering
-    // This works with a Stream, so that we can read large amounts of data
-    vxiBufStream vxiStream(client, slot);
+    // Use of shared memory zones:
+    // read_request points to the static buffer vxi_read_buffer
+    // read_response points to the static buffer vxi_send_buffer
+
+    uint32_t max_len = MAX_READ_RESPONSE_DATA_SIZE; // I do not have more than that. The output buffer will overflow
+    uint32_t request_len = (uint32_t)read_request->request_size;
+    if (request_len > 0 && request_len < max_len) {
+        max_len = request_len;
+    }
+
+    memset(read_response, 0, sizeof(read_response_packet));
+    // If I surpass my max size, I just cut off and the client will have to issue another read 
+    vxiBufStream vxiStream(read_response->data, max_len);  ///< using the static buffer's data area
     bool rv = scpi_handler.read(addresses[slot], vxiStream);
     // FIXME handle error codes, maybe even pick up errors from the SCPI Parser
 #ifdef LOG_VXI_DETAILS
@@ -374,10 +350,26 @@ void VXI_Server::read(EthernetClient &client, int slot)
     debugPort.print((uint32_t)vxi_port);
     debugPort.print(F("; gpib_address="));
     debugPort.print(addresses[slot]);
-    debugPort.print(F("; total data length = "));
-    debugPort.println((uint32_t)vxiStream.total_len);
-#endif   
-    vxiStream.flushVXI(true); // flush the stream to the client
+    debugPort.print(F("; data len = "));
+    debugPort.print((uint32_t)vxiStream.len());
+    debugPort.print(F("; max length = "));
+    debugPort.print(max_len);
+    debugPort.print(F("; had_overflow = "));
+    debugPort.print(vxiStream.had_overflow());    
+    debugPort.print(F("; data = "));
+    printBuf(read_response->data, (int)vxiStream.len());    
+#endif
+
+    read_response->rpc_status = rpc::SUCCESS;
+    read_response->error = rpc::NO_ERROR;
+    if (vxiStream.had_overflow()) {
+        read_response->reason = 0; // tell the user to read again
+    } else {
+        read_response->reason = rpc::END;
+    }
+    read_response->data_len = (uint32_t)vxiStream.len();
+
+    send_vxi_packet(client, sizeof(read_response_packet) + read_response->data_len);
 }
 
 void VXI_Server::write(EthernetClient &client, int slot)
@@ -388,14 +380,18 @@ void VXI_Server::write(EthernetClient &client, int slot)
     // write_request points to the static buffer vxi_read_buffer
     // write_response points to the static buffer vxi_send_buffer
     
-    uint32_t wlen = write_request->data_len;
-    uint32_t len = wlen;
-
-    // right trim. SCPI parser doesn't like \r\n
-    while (len > 0 && isspace(write_request->data[len - 1])) {
-        len--;
+    uint32_t len = write_request->data_len;
+    if (len >= MAX_WRITE_REQUEST_DATA_SIZE) {
+        len = MAX_WRITE_REQUEST_DATA_SIZE - 1; // I do not have more than that. The input buffer will have been truncated before.
     }
-    write_request->data[len] = 0;
+
+    uint32_t wlen = len;
+    // right trim. Some instruments don't like \r\n
+    while (wlen > 0 && isspace(write_request->data[wlen - 1])) {
+        wlen--;
+    }    
+    write_request->data[wlen] = 0; // make sure it is null terminated
+
 #ifdef LOG_VXI_DETAILS
     debugPort.print(F("WRITE DATA LID="));
     debugPort.print(slot);
@@ -404,16 +400,16 @@ void VXI_Server::write(EthernetClient &client, int slot)
     debugPort.print(F("; gpib_address="));
     debugPort.print(addresses[slot]);        
     debugPort.print(F("; data = "));
-    printBuf(write_request->data, (int)len);
+    printBuf(write_request->data, (int)wlen);
 #endif
     /*  Parse and respond to the SCPI command  */
-    scpi_handler.write(addresses[slot], write_request->data, len);
+    scpi_handler.write(addresses[slot], write_request->data, wlen);
 
     /*  Generate the response  */
     memset(write_response, 0, sizeof(write_response_packet));
     write_response->rpc_status = rpc::SUCCESS;
     write_response->error = rpc::NO_ERROR;
-    write_response->size = wlen; // with the original length
+    write_response->size = len; // with the potentially truncated original (non trimmed) length
     send_vxi_packet(client, sizeof(write_response_packet));
 }
 

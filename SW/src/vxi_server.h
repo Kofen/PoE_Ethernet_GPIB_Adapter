@@ -6,21 +6,21 @@
 #include "rpc_packets.h"
 
 /**
- * @brief a helper class to capture data from the instruments, and send it through to the VXI client.
+ * @brief a helper class to capture data from the instruments, and send it through to the VXI buffers.
  * This class only supports basic write operations (for now)
  */
 class vxiBufStream : public Stream {
    public:
-    vxiBufStream(EthernetClient &tcp, int slot) : tcp(tcp), slot(slot), buffer_pos(0), total_len(0) {}
+    vxiBufStream(char *buf, size_t size) : buffer(buf), bufferSize(size) {}
 
     size_t write(uint8_t ch) override {
         // debugPort.print((char)ch);
-        if (buffer_pos >= sizeof(buffer) - 1) {
-            flushVXI(false);  // buffer is full, flush it to vxi. Let flush() do the repositioning of the buffer pointer
+        if (buffer_pos < bufferSize) {
+            buffer[buffer_pos++] = ch;
+            return 1;
         }
-        buffer[buffer_pos++] = ch;
-        total_len++;
-        return 1;
+        _had_overflow = true;
+        return 0;
     }
 
     size_t write(const uint8_t *buffer, size_t size) override {
@@ -38,22 +38,20 @@ class vxiBufStream : public Stream {
     int available() { return 0; }  // dummy
     int read() { return 0; }       // dummy
     int peek() { return 0; }       // dummy
+    bool had_overflow() { return _had_overflow; }
 
     size_t len(void) { return buffer_pos; }
-    size_t total_len = 0;  // total length of the data
 
-    // This flush is called when the buffer is full
+    // flush is not used
     void flush() {
-        flushVXI(false);  // send the data to the VXI client
+      buffer_pos = 0;  // clear the buffer
     }
-    // This is the real flush
-    void flushVXI(bool close = false);
 
    private:
-    char buffer[MAX_READ_RESPONSE_DATA_SIZE];  // buffer for the data
+    char *buffer;
+    size_t bufferSize;
     size_t buffer_pos = 0;
-    EthernetClient &tcp;
-    int slot = 0;
+    bool _had_overflow = false;
 };
 
 /*!

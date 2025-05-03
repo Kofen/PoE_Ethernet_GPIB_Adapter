@@ -33,9 +33,9 @@
 // Maximum number of clients for the VXI server:
 // Max MAX_SOCK_NUM sockets on the device. You will likely not even be able to reach that number, because of other sockets open or busy closing
 #define MAX_VXI_CLIENTS MAX_SOCK_NUM
-// set LOG_VXI_DETAILS to 0 or 1, depending on whether you want to see VXI details on the debugPort
-// setting to 1 messes up the serial menu a bit
-#define LOG_VXI_DETAILS 0
+// define LOG_VXI_DETAILS, if you want to see VXI details on the debugPort
+// It will mess up the serial menu a bit
+#define LOG_VXI_DETAILS
 
 // set LOG_WEB_DETAILS to 0 or 1, depending on whether you want to see Web server details on the debugPort
 // setting to 1 messes up the serial menu a bit

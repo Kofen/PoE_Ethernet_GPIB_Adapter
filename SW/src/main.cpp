@@ -82,38 +82,6 @@ extern GPIBbus gpibBus;
 // #define DUMMY_DEVICE
 
 /**
- * @brief a helper class to capture data printed by receiveData (using Stream.write(uint8_t ch)) to an external buffer
- */
-class bufStream : public Stream {
-   public:
-    bufStream(char *buf, size_t size) : buffer(buf), bufferSize(size) {}
-
-    size_t write(uint8_t ch) override {
-        // debugPort.print((char)ch);
-        if (buffer_pos < bufferSize) {
-            buffer[buffer_pos++] = ch;
-            return 1;
-        }
-        return 0;
-    }
-
-    int available() { return 0; }  // dummy
-    int read() { return 0; }       // dummy
-    int peek() { return 0; }       // dummy
-
-    size_t len(void) { return buffer_pos; }
-
-    void flush() {
-        buffer_pos = 0;  // clear the buffer
-    }
-
-   private:
-    char *buffer;
-    size_t bufferSize;
-    size_t buffer_pos = 0;
-};
-
-/**
  * @brief SCPI handler interface
  *
  * This class handles the communication between the VXI servers and the SCPI parser or the devices.
@@ -142,11 +110,11 @@ class SCPI_handler : public SCPI_handler_interface {
 #endif
     }
 
-    bool read(int address, char *data, size_t *len, size_t max_len) override {
+    bool read(int address, vxiBufStream &dataStream) override {
 #ifdef DUMMY_DEVICE
         // Simulate a device response
-        memset(data, 0, max_len);
-        *len = snprintf(data, max_len, "SCPI response");
+        uint8_t data[] = "SCPI response";
+        dataStream.write(data, strlen(data));
         return true;
 #else
         if (address == 0) {
@@ -155,12 +123,11 @@ class SCPI_handler : public SCPI_handler_interface {
         }
         // dummy reply if I am addressed
         if (address == 0) {
-            strncpy(data, DEVICE_NAME, max_len);
-            *len = strlen(data);
+            uint8_t deviceName[] = DEVICE_NAME;
+            dataStream.write(deviceName, sizeof(DEVICE_NAME) - 1); // remove the null terminator
             return true;  // no address
         }
-        bufStream buf = bufStream(data, max_len);  ///< Buffer stream for incoming data
-
+        
         bool readWithEoi = true;
         bool detectEndByte = false;
         uint8_t endByte = 0;
@@ -168,9 +135,8 @@ class SCPI_handler : public SCPI_handler_interface {
         gpibBus.cfg.paddr = address;
         gpibBus.cfg.saddr = 0xFF;  // secondary address is not used
         gpibBus.addressDevice(address, 0xFF, TOTALK);     // tel device 'paddr' to talk. If you do this and the device has nothing to say, you might get an error.
-        gpibBus.receiveData(buf, readWithEoi, detectEndByte, endByte);  // get the data from the bus and send out
+        gpibBus.receiveData(dataStream, readWithEoi, detectEndByte, endByte);  // get the data from the bus and send out
         gpibBus.unAddressDevice();
-        *len = buf.len();
         return true;
 #endif
     }
@@ -260,10 +226,10 @@ void setup() {
     // This would be the place to add mdns, but none of the main mdns libraries support the present ethernet library
 #ifdef INTERFACE_VXI11
     debugPort.println(F("Starting VXI-11 TCP RPC server on port " STR(VXI11_PORT) "..."));
-    vxi_server.begin(VXI11_PORT, LOG_VXI_DETAILS);
+    vxi_server.begin(VXI11_PORT);
 
     debugPort.println(F("Starting VXI-11 port mappers on TCP and UDP on port 111..."));
-    rpc_bind_server.begin(LOG_VXI_DETAILS);
+    rpc_bind_server.begin();
     debugPort.println(F("VXI-11 servers started"));
 #endif
 

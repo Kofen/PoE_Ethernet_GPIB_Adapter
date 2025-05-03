@@ -100,9 +100,13 @@ Also, be aware that the GPIB bus is a shared bus. Even if you have connected to 
 
 ### Large replies or large requests
 
-The limited memory of the device puts limitations on the size of the requests and the repllies. The device will not accept requests bigger than X **(TODO)** bytes, and replies bigger than roughly Y **(TODO)** bytes. In case of overflow, the client will be informed via VXI signalling.
+The limited memory of the device puts limitations on the size of the commands and queries and the replies. The device will not accept commands or queries bigger than 196 bytes, and replies bigger than roughly Y **(TODO)** bytes. In case of overflow, the client will be informed via VXI signalling.
 
 The prologix service does not have this limitation, as it it built on a simpler protocol, and uses streaming.
+
+### Prologix and pyvisa
+
+Support for prologix in pyvisa has been pending since a long time. Depending on your situation, you can try to bypass it by faking the prologix service as being a raw socket service (ex `TCPIP::192.168.7.206::1234::SOCKET`), and then mix the SCPI commands with the correct `+++` commands.
 
 ---
 

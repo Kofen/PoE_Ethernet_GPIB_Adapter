@@ -19,7 +19,7 @@ TESTCONFIG = {
         "inst": "TCPIP::192.168.7.206::gpib,1::INSTR",
         "p": 0,
         "type": "66332A",
-        "readings": 100
+        "readings": 89
     },    
     "direct": {
         "inst": "TCPIP::192.168.7.205::INSTR",

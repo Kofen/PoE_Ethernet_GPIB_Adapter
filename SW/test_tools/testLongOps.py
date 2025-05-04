@@ -21,19 +21,19 @@ TESTCONFIG = {
         "inst": "TCPIP::192.168.7.206::gpib,1::INSTR",
         "p": 0,
         "type": "66332A",
-        "readings": 0,
-        "writes": 30
+        "readings": 800,
+        "writes": 14  # 14 is the limit because otherwise the instrument craps out
     },    
     "direct": {
         "inst": "TCPIP::192.168.7.205::INSTR",
         "p": 0,
         "type": "DMM6500",
         "readings": 256,
-        "writes": 256
+        "writes": 0
     }
 }
 
-DEFAULT_DEVICE = "usb"  # "usb" or "direct" or "prologix_gateway" or "vxi_gateway"
+DEFAULT_DEVICE = "vxi_gateway"  # "usb" or "direct" or "prologix_gateway" or "vxi_gateway"
 
 PROLOGIX_SLEEP = 0.1  # seconds
 
@@ -74,9 +74,6 @@ def init_device(device_address: str, device_bus_address: int, prologix: bool):
     if prologix:
         inst.read_termination = "\n"
         inst.write_termination = "\n"
-    else:
-        inst.read_termination = None  # '\n'
-        inst.write_termination = None  # '\n'
 
     print("Init communication with device and resetting device...")
 
@@ -90,6 +87,16 @@ def init_device(device_address: str, device_bus_address: int, prologix: bool):
     inst.write("*rst")
     inst.write("*cls")
     # inst.write("*rcl")
+    
+    check_err(inst, prologix)
+    
+    print("Identifying device...")
+    if prologix:
+        inst.write("*IDN?")
+        idn = inst.query("++read eoi")
+    else:
+        idn = inst.query("*IDN?")
+    print(f"Device ID: \"{idn}\"")
     
     check_err(inst, prologix)
     
@@ -115,7 +122,7 @@ def write_device(device_address: str, device_bus_address: int, device_type: str,
         cmd = "OUTP ON;VOLT 0;"
         m = 20.0 / number_of_writes
         for i in range(number_of_writes):
-            cmd += f"VOLT {(i + 1) * m:.3f};"
+            cmd += f"VOLT {(i + 1) * m:.3f};*WAI;"  # adding WAI so I can see the progress on a scope or fast DMM
 
     inst.write(cmd)
     time.sleep(1)

@@ -110,8 +110,19 @@ class SCPI_handler : public SCPI_handler_interface {
                 gpibBus.addressDevice(address, 0xFF, TOLISTEN);
             }
         }
+        bool had_eoi = gpibBus.cfg.eoi;
+        bool had_eos = gpibBus.cfg.eos;
+        if (!is_end) {
+            // if this is not the end of the command, so do not send eoi
+            gpibBus.cfg.eoi = 0;
+            gpibBus.cfg.eos = 3;  // do not append EOI at end of the command
+        }
         gpibBus.sendData(data, len);
-        if (is_end) {
+        if (!is_end) {
+            // restore the original settings
+            gpibBus.cfg.eoi = had_eoi;
+            gpibBus.cfg.eos = had_eos;
+        } else {
             gpibBus.unAddressDevice();
             gpibBus.cfg.paddr = 0xFF;  // mark as unaddressed
         }

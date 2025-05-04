@@ -51,9 +51,11 @@ uint32_t get_bind_packet(EthernetClient &tcp)
     len = (tcp_request_prefix->length & 0x7fffffff); // mask out the FRAG bit
 
     if (len > 4) {
-        len = min(len, (uint32_t)(TCP_READ_SIZE - 4)); // do not read more than the buffer can hold
+        len = min(len, (uint32_t)(sizeof(tcp_read_buffer) - 4)); // do not read more than the buffer can hold
 
         tcp.readBytes(tcp_request_packet_buffer, len);
+    } else {
+        len = 0; // no data read
     }
 
     return len;
@@ -81,7 +83,6 @@ uint32_t get_vxi_packet(EthernetClient &tcp)
     return_len = (vxi_request_prefix->length & 0x7fffffff); // mask out the FRAG bit
 
     if (return_len > 4) {
-        // remove 4 because I already read 4 into the buffer
         if (return_len >= sizeof(vxi_read_buffer) - 4) {
             return_len = 0xffffffff; // packet too large
             read_len = (uint32_t)(sizeof(vxi_read_buffer) - 4); // do not read more than the buffer can hold

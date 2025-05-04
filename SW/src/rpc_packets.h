@@ -33,6 +33,9 @@ void send_vxi_packet(EthernetClient &tcp, uint32_t len);
 
 void fill_response_header(uint8_t *buffer, uint32_t xid);
 
+// The following 2 should be 1024 according to the VXI specification
+#define TARGET_MAX_WRITE_REQUEST_DATA_SIZE 1024  // maximum size of the data in a write request
+#define TARGET_MAX_READ_RESPONSE_DATA_SIZE 1024  // maximum size of the data in a read response
 
 /*!
   @brief  Enumeration of the sizes of the various packet buffers.
@@ -41,12 +44,12 @@ void fill_response_header(uint8_t *buffer, uint32_t xid);
   expected data for the type of packet involved. The numbers below must be at boundaries of 4 bytes
 */
 enum packet_buffer_sizes {
-    UDP_READ_SIZE = 40,  ///< The UDP bind request should be 40 bytes
-    UDP_SEND_SIZE = 28,  ///< The UDP bind response should be 24 or 28 bytes
-    TCP_READ_SIZE = 44,  ///< The TCP bind request should be 40 bytes + 4 bytes for prefix
-    TCP_SEND_SIZE = 32,  ///< The TCP bind response should be 24 or 28 bytes + 4 bytes for prefix
-    VXI_READ_SIZE = 1024,///< The VXI requests size, this influences maxRecvSize / max_receive_size / MAX_WRITE_REQUEST_DATA_SIZE
-    VXI_SEND_SIZE = 1024 ///< The VXI response size, this influences MAX_READ_RESPONSE_DATA_SIZE
+    UDP_READ_SIZE = 64,  ///< The UDP bind request should be at least 40 bytes
+    UDP_SEND_SIZE = 32,  ///< The UDP bind response should be at least 24 or 28 bytes, and 4 for padding
+    TCP_READ_SIZE = 64,  ///< The TCP bind request should be at least 40 bytes + 4 bytes for prefix
+    TCP_SEND_SIZE = 36,  ///< The TCP bind response should be at least 24 or 28 bytes + 4 bytes for prefix, and 4 for padding
+    VXI_READ_SIZE = TARGET_MAX_WRITE_REQUEST_DATA_SIZE+64,///< The VXI requests size, is struct size + MAX_WRITE_REQUEST_DATA_SIZE + 4 bytes for prefix.
+    VXI_SEND_SIZE = TARGET_MAX_READ_RESPONSE_DATA_SIZE+44 ///< The VXI response size, struct size + MAX_READ_RESPONSE_DATA_SIZE + 4 bytes for prefix, and 4 for padding
 };
 
 /*  declaration of data buffers  */
@@ -124,8 +127,8 @@ struct rpc_request_packet {
     big_endian_32_t verifier_h;      ///< Security data (not used in this context)
 };
 
-static_assert(sizeof(rpc_request_packet) == UDP_READ_SIZE, "rpc_request_packet is wrong size");
-static_assert(sizeof(rpc_request_packet) == TCP_READ_SIZE-4, "rpc_request_packet is wrong size");
+static_assert(sizeof(rpc_request_packet) <= UDP_READ_SIZE, "rpc_request_packet is too big");
+static_assert(sizeof(rpc_request_packet) <= TCP_READ_SIZE-4, "rpc_request_packet is too big");
 
 /*!
   @brief  Structure of the minimum RPC response packet.
@@ -143,8 +146,8 @@ struct rpc_response_packet {
     big_endian_32_t rpc_status;  ///< Status of accepted message (see rpc::rpc_status)
 };
 
-static_assert(sizeof(rpc_response_packet) <= UDP_SEND_SIZE, "rpc_response_packet is wrong size");
-static_assert(sizeof(rpc_response_packet) <= TCP_SEND_SIZE-4, "rpc_response_packet is wrong size");
+static_assert(sizeof(rpc_response_packet) <= UDP_SEND_SIZE, "rpc_response_packet is too big");
+static_assert(sizeof(rpc_response_packet) <= TCP_SEND_SIZE-4, "rpc_response_packet is too big");
 
 /*!
   @brief  Structure of the RPC bind request packet.
@@ -170,8 +173,8 @@ struct bind_request_packet {
     // big_endian_32_t getport_port;     ///< We ignore this
 };
 
-static_assert(sizeof(bind_request_packet) == UDP_READ_SIZE, "bind_request_packet is wrong size");
-static_assert(sizeof(bind_request_packet) == TCP_READ_SIZE-4, "bind_request_packet is wrong size");
+static_assert(sizeof(bind_request_packet) <= UDP_READ_SIZE, "bind_request_packet is too big");
+static_assert(sizeof(bind_request_packet) <= TCP_READ_SIZE-4, "bind_request_packet is too big");
 
 /*!
   @brief  Structure of the RPC bind response packet.
@@ -191,8 +194,8 @@ struct bind_response_packet {
     big_endian_32_t vxi_port;    ///< The port on which the VXI_Server is currently listening
 };
 
-static_assert(sizeof(bind_response_packet) == UDP_SEND_SIZE, "bind_response_packet is wrong size");
-static_assert(sizeof(bind_response_packet) == TCP_SEND_SIZE-4, "bind_response_packet is wrong size");
+static_assert(sizeof(bind_response_packet) <= UDP_SEND_SIZE, "bind_response_packet is too big");
+static_assert(sizeof(bind_response_packet) <= TCP_SEND_SIZE-4, "bind_response_packet is too big");
 
 /*!
   @brief  Structure of the VXI_11_CREATE_LINK request packet.
@@ -218,7 +221,9 @@ struct create_request_packet {
     char data[];                     ///< name of the instrument (e.g., instr0), see MAX_INSTRUMENT_NAME_LENGTH
 };
 
-#define MAX_INSTRUMENT_NAME_LENGTH (VXI_READ_SIZE - (14*4) - 4) ///< maximum length of the instrument name
+#define MAX_INSTRUMENT_NAME_LENGTH (VXI_READ_SIZE - (14*4) - 4) ///< maximum length of the instrument name (incl null terminator)
+
+static_assert(MAX_INSTRUMENT_NAME_LENGTH >= TARGET_MAX_WRITE_REQUEST_DATA_SIZE, "MAX_INSTRUMENT_NAME_LENGTH is too small");
 
 static_assert((sizeof(create_request_packet) + MAX_INSTRUMENT_NAME_LENGTH) == VXI_READ_SIZE - 4, "create_request_packet is wrong size");
 
@@ -334,9 +339,10 @@ struct read_response_packet {
     char data[];                 ///< The data returned, see MAX_READ_RESPONSE_DATA_SIZE
 };
 
-#define MAX_READ_RESPONSE_DATA_SIZE (VXI_SEND_SIZE - (9*4) - 4) ///< Maximum size of the data returned in a read response
+#define MAX_READ_RESPONSE_DATA_SIZE (VXI_SEND_SIZE - (9*4) - 4 - 4) ///< Maximum size of the data returned in a read response
 
-static_assert((sizeof(read_response_packet) + MAX_READ_RESPONSE_DATA_SIZE) == VXI_SEND_SIZE - 4, "read_response_packet is wrong size");
+static_assert(MAX_READ_RESPONSE_DATA_SIZE == TARGET_MAX_READ_RESPONSE_DATA_SIZE, "MAX_READ_RESPONSE_DATA_SIZE is wrong");
+static_assert((sizeof(read_response_packet) + MAX_READ_RESPONSE_DATA_SIZE) == VXI_SEND_SIZE - 4 - 4, "read_response_packet is wrong size");
 
 /*!
   @brief  Structure of the VXI_11_DEV_WRITE request packet.
@@ -366,6 +372,9 @@ struct write_request_packet {
 };
 
 #define MAX_WRITE_REQUEST_DATA_SIZE (VXI_READ_SIZE - (15*4) - 4) ///< Maximum size of the data sent in a write request.
+// also used for maxRecvSize / max_receive_size
+
+static_assert(MAX_WRITE_REQUEST_DATA_SIZE == TARGET_MAX_WRITE_REQUEST_DATA_SIZE, "MAX_WRITE_REQUEST_DATA_SIZE is incorrect");
 
 static_assert((sizeof(write_request_packet) + MAX_WRITE_REQUEST_DATA_SIZE) == VXI_READ_SIZE - 4, "write_request_packet is wrong size");
 

@@ -135,7 +135,7 @@ And all the source code for all the parts should be in their respective folders 
 
 ## How to compile
 
-The easiest is for compilation with PlatformIO, from the [SW](/SW) directory.
+The easiest is compilation with PlatformIO, from the [SW](/SW) directory. There are separate targets for the VXI-11 and Prologix versions.
 
 ## License
 

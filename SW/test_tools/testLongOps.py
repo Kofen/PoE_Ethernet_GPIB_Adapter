@@ -281,13 +281,15 @@ if __name__ == '__main__':
     DEFAULT_WRITES = TESTCONFIG[DEFAULT_DEVICE]["writes"]
     
     presets = TESTCONFIG.keys()
+    presets = [p for p in presets if p != "default"]  # remove default from the list
+    device_types = ["DMM6500", "K2000", "66332A"]
     
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Test long Reads or Writes via VXI-11, USB prologix or Ethernet prologix.",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("instrument", type=str, nargs="?", default=DEFAULT_INST, help="The device to use for tests. Must be a Visa compatible connection string.")
-    parser.add_argument("-p", type=int, default=DEFAULT_P, help="The device address on the bus. Used with prologix.")
-    parser.add_argument("-t", choices=['DMM6500', "K2000", "6332B"], default=DEFAULT_TYPE, help="The instrument type.")
+    parser.add_argument("-p", type=int, default=DEFAULT_P, help="The device address on the bus. Used with prologix. Use 0 for VXI-11.")
+    parser.add_argument("-t", choices=device_types, default=DEFAULT_TYPE, help="The instrument type.")
     parser.add_argument("-r", type=int, default=DEFAULT_READINGS, help="Number of readings.")
     parser.add_argument("-w", type=int, default=DEFAULT_WRITES, help="Number of writes.")
     parser.add_argument("-d", choices=presets, default=None, help="Select one of the presets.")
@@ -306,6 +308,14 @@ if __name__ == '__main__':
         device_type = TESTCONFIG[preset]["type"]
         number_of_readings = TESTCONFIG[preset]["readings"]
         number_of_writes = TESTCONFIG[preset]["writes"]
+    
+    if number_of_writes == 0 and number_of_readings == 0:
+        print("Nothing to do. Exiting. See -h for help.")
+        exit(0)
+        
+    if device_address is None or device_address == "":
+        print("No device address provided. Exiting.")
+        exit(1)
     read_device(device_address, device_bus_address, device_type, number_of_readings)
     write_device(device_address, device_bus_address, device_type, number_of_writes)
 

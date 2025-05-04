@@ -7,17 +7,17 @@ TESTCONFIG = {
         "inst": "ASRL/dev/cu.usbmodem21101::INSTR",
         "p": 1,
         "type": "66332A",
-        "readings": 0,
-        "writes": 10
+        "readings": 800,
+        "writes": 14
     },
-    "prologix_gateway": {
+    "prologix": {
         "inst": "TCPIP::192.168.7.206::1234::SOCKET",
         "p": 1,
         "type": "66332A",
-        "readings": 100,
-        "writes": 100
+        "readings": 800,
+        "writes": 14  # 14 is the limit because otherwise the instrument craps out
     },
-    "vxi_gateway": {
+    "vxi": {
         "inst": "TCPIP::192.168.7.206::gpib,1::INSTR",
         "p": 0,
         "type": "66332A",
@@ -30,10 +30,17 @@ TESTCONFIG = {
         "type": "DMM6500",
         "readings": 256,
         "writes": 0
-    }
+    },
+    "default": {
+        "inst": "TCPIP::192.168.7.205::INSTR",
+        "p": 0,
+        "type": "DMM6500",
+        "readings": 0,
+        "writes": 0
+    }    
 }
 
-DEFAULT_DEVICE = "vxi_gateway"  # "usb" or "direct" or "prologix_gateway" or "vxi_gateway"
+DEFAULT_DEVICE = "default"
 
 PROLOGIX_SLEEP = 0.1  # seconds
 
@@ -273,6 +280,8 @@ if __name__ == '__main__':
     DEFAULT_READINGS = TESTCONFIG[DEFAULT_DEVICE]["readings"]
     DEFAULT_WRITES = TESTCONFIG[DEFAULT_DEVICE]["writes"]
     
+    presets = TESTCONFIG.keys()
+    
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Test long Reads or Writes via VXI-11, USB prologix or Ethernet prologix.",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -281,6 +290,7 @@ if __name__ == '__main__':
     parser.add_argument("-t", choices=['DMM6500', "K2000", "6332B"], default=DEFAULT_TYPE, help="The instrument type.")
     parser.add_argument("-r", type=int, default=DEFAULT_READINGS, help="Number of readings.")
     parser.add_argument("-w", type=int, default=DEFAULT_WRITES, help="Number of writes.")
+    parser.add_argument("-d", choices=presets, default=None, help="Select one of the presets.")
     parser.epilog = "VXI-11 address example: \"TCPIP::192.168.1.84::gpib,1::INSTR\". USB Prologix address example: \"ASRL9::INSTR\". Ethernet Prologix address example: \"TCPIP::192.168.1.84::1234::SOCKET\". This code is NOT compatible with a RAW socket device, as I re-use the RAW socket address style for prologix."
     args = parser.parse_args()
         
@@ -289,6 +299,13 @@ if __name__ == '__main__':
     device_type = args.t
     number_of_readings = args.r
     number_of_writes = args.w
+    preset = args.d
+    if preset is not None:
+        device_address = TESTCONFIG[preset]["inst"]
+        device_bus_address = TESTCONFIG[preset]["p"]
+        device_type = TESTCONFIG[preset]["type"]
+        number_of_readings = TESTCONFIG[preset]["readings"]
+        number_of_writes = TESTCONFIG[preset]["writes"]
     read_device(device_address, device_bus_address, device_type, number_of_readings)
     write_device(device_address, device_bus_address, device_type, number_of_writes)
 

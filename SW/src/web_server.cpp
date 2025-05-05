@@ -35,6 +35,84 @@ char *trim(char *s) {
     return rtrim(ltrim(s)); 
 }
 
+// *********************************************** */
+// SCPI bus read
+// *********************************************** */
+
+#include "AR488_GPIBbus.h"
+
+extern GPIBbus gpibBus;
+
+/**
+ * @brief scan the GPIB bus and return all found instruments. 
+ * It is heavily inspired by the fndl_h() function from the Prologix GPIB controller, with the parameter "all".
+ * 
+ * @return uint32_t bitmap: bit 1 = address 1, etc. Handy that addresses are 1-31
+ */
+uint32_t fndl(void) {
+    uint16_t tmo = gpibBus.cfg.rtmo;
+    uint8_t i = 0;
+    uint8_t j = 0;
+    uint8_t pri = 0xFF;
+    uint32_t bitmap = 0;
+
+    // Set minimal timeout
+    gpibBus.cfg.rtmo = 35;
+
+    // Request 'all'
+    j = 31;
+
+    // Poll the range of GPIB adresses
+    while (i < j) {
+        pri = i;
+
+        // Ignore the controller address
+        if (pri == gpibBus.cfg.caddr) {
+            i++;
+            continue;
+        }
+
+        // Serial.print("PRI: ");
+        // Serial.println(pri);
+
+        // Send UNL + UNT + LAD (addressDevice function adds 0x20 to pri)
+        if (gpibBus.addressDevice(pri, 0xFF, TOLISTEN) == 1) {
+#ifdef LOG_WEB_DETAILS
+            debugPort.print(F("Error in addressDevice for primary address "));
+            debugPort.println(pri);            
+#endif
+            break;
+        }
+
+        gpibBus.clearSignal(ATN_BIT);
+        delayMicroseconds(1600);
+
+        if (gpibBus.isAsserted(NDAC_PIN)) {
+#ifdef LOG_WEB_DETAILS
+            debugPort.print(F("Found Device with primary address "));
+            debugPort.println(pri);            
+#endif
+            bitmap |= (1UL << pri);
+            // else.... I do no scan for secondary addresses
+        }  // End if NDAC aserted
+
+        gpibBus.setControls(CIDS);
+        //    delay(50);
+        i++;
+
+    }  // END while
+
+    gpibBus.cfg.rtmo = tmo;
+
+    gpibBus.setControls(CIDS);
+    return bitmap;
+}
+
+// *********************************************** */
+// the web server
+// *********************************************** */
+
+// This is a simple web server that handles a single connection at a time.
 BasicWebServer::BasicWebServer() {
     // Constructor
 }
@@ -203,10 +281,14 @@ void BasicWebServer::handleRequest(EthernetClient& client, char* path, int nrCon
         } else if (strcmp(path,"/fnd") == 0) {
             sendResponseHeaderPlainText(bp);
             // this is the find command
-            // TODO search for instruments on the bus, see fndl_h()
-            // mock the response for now
-            printOption(bp, "gpib,1");
-            printOption(bp, "gpib,2");
+            // search for instruments on the bus, see fndl_h()
+            uint32_t bitmap = fndl();
+            for (int i = 0; i < 32; i++) {
+                if (bitmap & (1UL << i)) {
+                    // this is a found instrument
+                    printOption(bp, "gpib,", i);
+                }
+            }
             isOK = true;
         } else if (strncmp(path,"/ex",3) == 0) {
             int cmd_type = -1;
@@ -302,6 +384,16 @@ void BasicWebServer::printOption(BufferedPrint& bp, const char* name) {
     bp.print(name);
     bp.print(F("\">"));
     bp.print(name);
+    bp.print(F("</option>"));
+}
+
+void BasicWebServer::printOption(BufferedPrint& bp, const char* name, int nr) {
+    bp.print(F("<option value=\""));
+    bp.print(name);
+    bp.print(nr);
+    bp.print(F("\">"));
+    bp.print(name);
+    bp.print(nr);
     bp.print(F("</option>"));
 }
 

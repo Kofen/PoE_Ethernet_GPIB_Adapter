@@ -28,4 +28,5 @@ private:
     char startreq[MAX_WEB_CLIENTS][MAX_START_LINE_LENGTH]; // buffer for the request line
 
     void printOption(BufferedPrint& bp, const char* name);
+    void printOption(BufferedPrint& bp, const char* name, int nr);
 };

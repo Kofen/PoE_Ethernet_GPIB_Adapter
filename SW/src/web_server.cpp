@@ -301,6 +301,7 @@ void BasicWebServer::handleRequest(EthernetClient& client, char* path, int nrCon
             sendResponseHeaderPlainText(bp);
             bp.print(nrConnections);
             isOK = true;
+#ifdef WEB_INTERACTIVE
         } else if (strcmp(path,"/fnd") == 0) {
             sendResponseHeaderPlainText(bp);
             // this is the find command
@@ -385,6 +386,7 @@ void BasicWebServer::handleRequest(EthernetClient& client, char* path, int nrCon
                     isOK = true;
                 }
             }
+#endif            
         }
     }
     if (!isOK) {
@@ -435,7 +437,7 @@ void BasicWebServer::sendResponseOK(BufferedPrint& bp, int nrConnections) {
     bp.print(F("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\" /> "
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" /> "
         "<title>Ethernet2GPIB</title><style> body { font-family: Arial, sans-serif; } "
-#ifdef INTERFACE_VXI11
+#if defined(INTERFACE_VXI11) || defined(WEB_INTERACTIVE)
         "table { text-align: left; border-collapse: collapse; } "
         "th, td { padding: 2px 8px; white-space: nowrap; vertical-align: top; } "
         "th { padding-top: 8px; } "
@@ -455,8 +457,10 @@ void BasicWebServer::sendResponseOK(BufferedPrint& bp, int nrConnections) {
     bp.print(Ethernet.localIP());
     bp.print(F("::INSTR</b> (unless you have set the default instrument address to something else than 0)</td></tr><tr><td>Instruments:</td><td><b>TCPIP::"));
     bp.print(Ethernet.localIP());
-    bp.print(F("::gpib,<i>N</i>::INSTR</b> or <b>...::inst<i>N</i>::INSTR</b>, where <i>N</i> is their address on the GPIB bus (1..30)</td></tr></table>"
-        "<h2>Interactive IO</h2>"
+    bp.print(F("::gpib,<i>N</i>::INSTR</b> or <b>...::inst<i>N</i>::INSTR</b>, where <i>N</i> is their address on the GPIB bus (1..30)</td></tr></table>"));
+#endif
+#ifdef WEB_INTERACTIVE
+    bp.print(F("<h2>Interactive IO</h2>"
         "<table><tr><td colspan=\"3\">Send remote programming (SCPI) commands and queries to the instrument and view the responses returned by the instrument.<br /></td></tr> "
         "<tr><th>Instruments</th><th colspan=\"2\">Command</th></tr> "
         "<tr><td rowspan=\"4\"><select id=\"inst\" size=\"4\" style=\"width: 8ch; overflow-y: auto;\"></select><br /><button onclick=\"find()\">Find</button></td>"
@@ -468,7 +472,7 @@ void BasicWebServer::sendResponseOK(BufferedPrint& bp, int nrConnections) {
     printOption(bp, "*CLS");
     printOption(bp, ":SYSTem:ERRor?");
     bp.print(F("</select></td></tr><tr><td colspan=\"2\">"
-        "<button onclick=\"ex(0)\">Execute</button>"
+        "<button onclick=\"ex(0)\">Query</button>"
         "&nbsp;&nbsp;<button onclick=\"ex(1)\" style=\"background-color: #888;\">Send</button> "
         " <button onclick=\"ex(2)\"  style=\"background-color: #888;\">Read</button> "
         "</td></tr>"

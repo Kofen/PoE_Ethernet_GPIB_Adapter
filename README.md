@@ -101,9 +101,9 @@ Also, be aware that the GPIB bus is a shared bus. Do not try to control instrume
 
 There are 3 parts:
 
-- the **LED**. It indicates different states: blue for waiting for DHCP, red for error in network or DHCP, green flashing for idle, green/blue flashing for busy
-- the **Web Server** (on port 80): it shows some help texts and the number of connected clients. It is not (yet) interactive.
-- the **serial console** (via USB): This console shows startup information, ports used, and has a small menu. 
+- the **LED**. It indicates different states: blue for waiting for DHCP, red for error in network or DHCP, green flashing for idle, green/blue flashing for busy.
+- the **Web Server** (on port 80): it shows some help texts, the number of connected clients, and allows interaction with any of the connected instruments. The latter functionality is however only available with the VXI-11 service, as Prologix does not leave enough ROM space available.
+- the **serial console** (via USB): This console shows startup information, ports used, and has a small menu.
 
 ### The serial menu
 
@@ -113,6 +113,14 @@ It has the following options:
 
 - Setting of IP address. By default, the device starts with DHCP. You can however force a fixed IP address.
 - Setting of the default instrument address (only with VXI-11, as Prologix has its own command for that). The default is 0, meaning: the gateway itself. If you only have 1 instrument connected, or want to designate a "preferred" instrument, you can set it to the address of any instrument on the bus. That way, the gateway becomes transparent, and you can use the default (and the discoverable) VISA connection string to address that instrument.
+
+### The Web server
+
+An example of the web page when using VXI-11:
+
+![web page](Img/web_server.png "Web Page")
+
+Note that the interactive part is not available when using Prologix.
 
 ---
 

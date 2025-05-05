@@ -472,9 +472,9 @@ void BasicWebServer::sendResponseOK(BufferedPrint& bp, int nrConnections) {
     printOption(bp, "*CLS");
     printOption(bp, ":SYSTem:ERRor?");
     bp.print(F("</select></td></tr><tr><td colspan=\"2\">"
-        "<button onclick=\"ex(0)\">Query</button>"
+        "<button id=\"ex\" onclick=\"ex(0)\">Query</button>"
         "&nbsp;&nbsp;<button onclick=\"ex(1)\" style=\"background-color: #888;\">Send</button> "
-        " <button onclick=\"ex(2)\"  style=\"background-color: #888;\">Read</button> "
+        "<button onclick=\"ex(2)\" style=\"background-color: #888;\">Read</button> "
         "</td></tr>"
         "<tr><th colspan=\"2\">History</th></tr><tr><td colspan=\"2\"><textarea id=\"r\" rows=\"10\" cols=\"80\" readonly></textarea><br /> "
         "<button onclick=\"self.r.value=''; scroll()\">Clear history</button></td></tr></table>\n"
@@ -483,12 +483,18 @@ void BasicWebServer::sendResponseOK(BufferedPrint& bp, int nrConnections) {
         "function ex(t) { const inst = self.inst.value; const cmd = self.cmd.value;\nif (inst === \"\") { alert(\"Please select an instrument\"); return; }\n"
         "var m = \"/ex\" + t.toString() + \"/\" + inst + \"/\";\n"
         "if (t < 2) { if (cmd === \"\") { alert(\"Please enter a command\"); return; } m += cmd; }\n"  // no encodeURIComponent here, decoding that would require a lot of code and ROM
-        "fetch(m) .then((response) => { if (!response.ok) { throw new Error(\"ERR: \" + response.statusText); } return response.text(); })\n"
-        ".then((data) => { self.r.value = \"\\n\" + self.r.value; "
+        "self.r.value = \"\\n\" + self.r.value; document.body.style.cursor = 'wait'; document.getElementById(\"ex\").style.cursor = 'wait'; "
+        "fetch(m) .then((response) => { document.body.style.cursor = 'default'; document.getElementById(\"ex\").style.cursor = 'default'; if (!response.ok) { throw new Error(\"ERR: \" + response.statusText); } return response.text(); })\n"
+        ".then((data) => { "
         "if ((t === 2)||((t === 0)&&(data !== \"\"))) { self.r.value = \"<= \" + inst + \": \" + data.trim() + \"\\n\" + self.r.value; }\n"
         "if (t < 2) { self.r.value = \"=> \" + inst + \": \" + cmd + \"\\n\" + self.r.value; }\n" 
         "scroll(); }); };\n"
-        "function scroll() { self.r.scrollTop = 0; }\n</script>\n"));
+        "function scroll() { self.r.scrollTop = 0; }\n"
+        "document.querySelector(\"#cmd\").addEventListener(\"keyup\", event => { "
+        "if(event.key !== \"Enter\") return; "
+        "document.querySelector(\"#ex\").click(); "
+        "event.preventDefault(); });\n"
+        "</script>\n"));
 #endif
     bp.print(F("</body></html>\n\n"));
 }

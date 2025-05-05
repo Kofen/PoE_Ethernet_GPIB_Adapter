@@ -124,6 +124,17 @@ An example of the web page when using VXI-11:
 
 Note that the interactive part is not available when using Prologix.
 
+Explanation of the buttons:
+
+* <kbd>Find</kbd>: scan the GPIB bus for instruments
+* <kbd>&lt;</kbd>: populate the Command field with one of the standard commands from the drop down list
+* <kbd>Query</kbd>: Query the selected instrument. This is the same as a Send followed by a Read provided the command ends with a "?". This is also executed when pressing the "enter" key while entering data in the command text field.
+* <kbd>Send</kbd>: Send command to the selected instrument.
+* <kbd>Read</kbd>: Read from the selected instrument.
+* <kbd>Clear history</kbd>: clear the contents of history.
+
+Do not interact with the instruments via the web interface while you also interact with the instruments from the VXI or Prologix interface.
+
 ---
 
 ## Project files

@@ -40,7 +40,6 @@ char *trim(char *s) {
 // *********************************************** */
 
 #include "AR488_GPIBbus.h"
-
 extern GPIBbus gpibBus;
 
 /**
@@ -106,6 +105,30 @@ uint32_t fndl(void) {
 
     gpibBus.setControls(CIDS);
     return bitmap;
+}
+
+void gpibWrite(int address, const char *data) {
+    if (address <= 0 || address > 31) {
+        return;
+    }
+    // Send data to the GPIB bus
+    gpibBus.cfg.paddr = address;  // primary address is not used
+    gpibBus.cfg.saddr = 0xFF;  // secondary address is not used
+    gpibBus.addressDevice(address, 0xFF, TOLISTEN);
+    gpibBus.sendData(data, strlen(data));
+    gpibBus.unAddressDevice();
+}
+
+void gpibRead(int address, Stream &dataStream) {
+    if (address <= 0 || address > 31) {
+        return;
+    }
+    // Send data to the GPIB bus
+    gpibBus.cfg.paddr = address;  // primary address is not used
+    gpibBus.cfg.saddr = 0xFF;  // secondary address is not used
+    gpibBus.addressDevice(address, 0xFF, TOTALK);
+    gpibBus.receiveData(dataStream, true, false, 0);
+    gpibBus.unAddressDevice();
 }
 
 // *********************************************** */
@@ -294,9 +317,9 @@ void BasicWebServer::handleRequest(EthernetClient& client, char* path, int nrCon
             int cmd_type = -1;
             int addr = -1;
             int num_chars = -1;
-            int r = sscanf(path, "/ex%d/gpib,%d/%n", &cmd_type, &addr, &num_chars);
+            int r = sscanf(path, "/ex%d/%d/%n", &cmd_type, &addr, &num_chars);
             if (r == 2 && num_chars > 0 && cmd_type >= 0 && cmd_type < 3 && addr > 0 && addr < 32) {
-                // I have a path like /ex1/gpib,1/123
+                // I have a path like /ex1/1/123
                 char *cmd = path + num_chars;
                 // now decode the command, in place. It can have %NN encoded characters
                 char *src = cmd;
@@ -348,16 +371,17 @@ void BasicWebServer::handleRequest(EthernetClient& client, char* path, int nrCon
                 sendResponseHeaderPlainText(bp);
                 if (cmd_type == 0 || cmd_type == 1) {
                     // this is the send command
-                    // TODO filter out instrument and parameters
-                    // and send the command to the instrument
+                    // send the command to the instrument
+                    gpibWrite(addr, cmd);
                     isOK = true;
                 }
                 if ((cmd_type == 2) || (cmd_type == 0 && cmd[strlen(cmd)-1] == '?')) {
                     // this is the read command
-                    // TODO filter out instrument
-                    // and get the reply from the instrument
-                    // mock the response for now
-                    bp.print(F("bla"));
+                    // get the reply from the instrument
+                    // first print the header
+                    bp.flush();
+                    // and stream data directly to the client
+                    gpibRead(addr, client);
                     isOK = true;
                 }
             }
@@ -389,7 +413,6 @@ void BasicWebServer::printOption(BufferedPrint& bp, const char* name) {
 
 void BasicWebServer::printOption(BufferedPrint& bp, const char* name, int nr) {
     bp.print(F("<option value=\""));
-    bp.print(name);
     bp.print(nr);
     bp.print(F("\">"));
     bp.print(name);
@@ -415,8 +438,9 @@ void BasicWebServer::sendResponseOK(BufferedPrint& bp, int nrConnections) {
 #ifdef INTERFACE_VXI11
         "table { text-align: left; border-collapse: collapse; } "
         "th, td { padding: 2px 8px; white-space: nowrap; vertical-align: top; } "
-        "button { margin: 0px 2px; color: white; background-color: gray; padding: 2px 12px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; } "
-        "textarea { width: 100%; } input { width: 100%; } "
+        "th { padding-top: 8px; } "
+        "button { margin: 0px 2px; color: white; background-color: #666; padding: 2px 12px; border-radius: 4px; border: 1px solid #888; cursor: pointer; } "
+        "textarea { width: 100%; } input { width: 100%; } h2 { border-bottom: 2px solid grey; }"
 #endif
         "</style></head><body><h1>" DEVICE_NAME "</h1><p>Number of client connections: <span id=\"cnx\">"));
     bp.print(nrConnections);
@@ -427,13 +451,15 @@ void BasicWebServer::sendResponseOK(BufferedPrint& bp, int nrConnections) {
     bp.print(F("</p>"));
 #endif
 #ifdef INTERFACE_VXI11
-    bp.print(F("<h2>VXI-11 Ethernet Server</h2><h3>VISA connection strings:</h3><table><tr><td>Controller:</td><td><b>TCPIP::"));
+    bp.print(F("<h2>VXI-11, VISA connection strings</h2><table><tr><td>Controller:</td><td><b>TCPIP::"));
     bp.print(Ethernet.localIP());
     bp.print(F("::INSTR</b> (unless you have set the default instrument address to something else than 0)</td></tr><tr><td>Instruments:</td><td><b>TCPIP::"));
     bp.print(Ethernet.localIP());
     bp.print(F("::gpib,<i>N</i>::INSTR</b> or <b>...::inst<i>N</i>::INSTR</b>, where <i>N</i> is their address on the GPIB bus (1..30)</td></tr></table>"
-        "<h3>Interactive IO:</h3><table><tr><th>Instruments</th><th colspan=\"2\">Command</th></tr> "
-        "<tr><td rowspan=\"4\"><select id=\"inst\" size=\"4\" style=\"width: 9ch;\"></select><br /><button onclick=\"find()\">Find</button></td>"
+        "<h2>Interactive IO</h2>"
+        "<table><tr><td colspan=\"3\">Send remote programming (SCPI) commands and queries to the instrument and view the responses returned by the instrument.<br /></td></tr> "
+        "<tr><th>Instruments</th><th colspan=\"2\">Command</th></tr> "
+        "<tr><td rowspan=\"4\"><select id=\"inst\" size=\"4\" style=\"width: 8ch; overflow-y: auto;\"></select><br /><button onclick=\"find()\">Find</button></td>"
         "<td width=\"80%\"><input type=\"text\" id=\"cmd\" maxlength=100 value=\"\" /></td><td><button onclick=\"self.cmd.value=self.pre.value\">&lt;</button>"
         "<select id=\"pre\">"));
     printOption(bp, "*IDN?");
@@ -443,20 +469,22 @@ void BasicWebServer::sendResponseOK(BufferedPrint& bp, int nrConnections) {
     printOption(bp, ":SYSTem:ERRor?");
     bp.print(F("</select></td></tr><tr><td colspan=\"2\">"
         "<button onclick=\"ex(0)\">Execute</button>"
-        "&nbsp;&nbsp;(<button onclick=\"ex(1)\">Send</button> <button onclick=\"ex(2)\">Read</button>) "
+        "&nbsp;&nbsp;<button onclick=\"ex(1)\" style=\"background-color: #888;\">Send</button> "
+        " <button onclick=\"ex(2)\"  style=\"background-color: #888;\">Read</button> "
         "</td></tr>"
         "<tr><th colspan=\"2\">History</th></tr><tr><td colspan=\"2\"><textarea id=\"r\" rows=\"10\" cols=\"80\" readonly></textarea><br /> "
-        "<button onclick=\"self.r.value=''; scroll()\">Clear</button></td></tr></table>\n"
+        "<button onclick=\"self.r.value=''; scroll()\">Clear history</button></td></tr></table>\n"
         "<script>\nfunction tick() { fetch(\"/cnx\") .then((response) => { if (!response.ok) { return \"?\"; } return response.text(); }) .then((data) => { self.cnx.innerHTML = data; }); }\nsetInterval(tick, 5000);"
         "function find() { fetch(\"/fnd\") .then((response) => { if (!response.ok) { throw new Error(\"ERR: \" + response.statusText); } return response.text(); }) .then((data) => { self.inst.innerHTML = data; }); };\n"
         "function ex(t) { const inst = self.inst.value; const cmd = self.cmd.value;\nif (inst === \"\") { alert(\"Please select an instrument\"); return; }\n"
         "var m = \"/ex\" + t.toString() + \"/\" + inst + \"/\";\n"
         "if (t < 2) { if (cmd === \"\") { alert(\"Please enter a command\"); return; } m += cmd; }\n"  // no encodeURIComponent here, decoding that would require a lot of code and ROM
         "fetch(m) .then((response) => { if (!response.ok) { throw new Error(\"ERR: \" + response.statusText); } return response.text(); })\n"
-        ".then((data) => { if (t < 2) { self.r.value += \"> \" + inst + \": \" + cmd + \"\\n\"; }\n"
-        "if ((t === 2)||((t === 0)&&(data !== \"\"))) { self.r.value += \"< \" + inst + \": \" + data + \"\\n\"; }\n"
+        ".then((data) => { self.r.value = \"\\n\" + self.r.value; "
+        "if ((t === 2)||((t === 0)&&(data !== \"\"))) { self.r.value = \"<= \" + inst + \": \" + data.trim() + \"\\n\" + self.r.value; }\n"
+        "if (t < 2) { self.r.value = \"=> \" + inst + \": \" + cmd + \"\\n\" + self.r.value; }\n" 
         "scroll(); }); };\n"
-        "function scroll() { self.r.scrollTop = self.r.scrollHeight; }\n</script>\n"));
+        "function scroll() { self.r.scrollTop = 0; }\n</script>\n"));
 #endif
     bp.print(F("</body></html>\n\n"));
 }

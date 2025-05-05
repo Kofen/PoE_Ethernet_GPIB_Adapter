@@ -118,7 +118,9 @@ It has the following options:
 
 An example of the web page when using VXI-11:
 
-![web page](Img/web_server.png "Web Page")
+<kbd>
+<img src="./Img/web_server.png">
+</kbd>
 
 Note that the interactive part is not available when using Prologix.
 

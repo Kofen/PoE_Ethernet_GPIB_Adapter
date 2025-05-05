@@ -8,12 +8,38 @@
 #include "AR488_ComPorts.h"
 #include <StreamLib.h>
 
+int decodeHexDigit(char c) {
+    if (c >= '0' && c <= '9') {
+        return c - '0';
+    } else if (c >= 'A' && c <= 'F') {
+        return c - 'A' + 10;
+    } else if (c >= 'a' && c <= 'f') {
+        return c - 'a' + 10;
+    }
+    return -1;
+}
+
+char *ltrim(char *s) {
+    while(isspace(*s)) s++;
+    return s;
+}
+
+char *rtrim(char *s) {
+    char* back = s + strlen(s);
+    while(isspace(*--back));
+    *(back+1) = '\0';
+    return s;
+}
+
+char *trim(char *s) {
+    return rtrim(ltrim(s)); 
+}
+
 BasicWebServer::BasicWebServer() {
     // Constructor
 }
 
-void BasicWebServer::begin(bool debug = false) {
-    this->debug = debug;
+void BasicWebServer::begin() {
     server.begin();
 }
 
@@ -43,12 +69,12 @@ void BasicWebServer::loop(int nrConnections) {
     // close any clients that are not connected
     for (int i = 0; i < MAX_WEB_CLIENTS; i++) {
         if (clients[i] && !clients[i].connected()) {
-            if (debug) {
-                debugPort.print(F("Force Closing Web connection of slot "));
-                debugPort.print(i);
-                debugPort.print(F(" from remote port "));
-                debugPort.println(clients[i].remotePort());
-            }
+#ifdef LOG_WEB_DETAILS
+            debugPort.print(F("Force Closing Web connection of slot "));
+            debugPort.print(i);
+            debugPort.print(F(" from remote port "));
+            debugPort.println(clients[i].remotePort());
+#endif
             clients[i].stop();            
         }
     }
@@ -66,22 +92,22 @@ void BasicWebServer::loop(int nrConnections) {
                     currentLineIsBlank[i] = true;
                     charsRead[i] = 0;
                     memset(startreq[i], 0, sizeof(startreq[i]));
-                    if (debug) {
-                        debugPort.print(F("New Web connection in slot "));
-                        debugPort.print(i);
-                        debugPort.print(F(" from remote port "));
-                        debugPort.println(newClient.remotePort());
-                    }
+#ifdef LOG_WEB_DETAILS
+                    debugPort.print(F("New Web connection in slot "));
+                    debugPort.print(i);
+                    debugPort.print(F(" from remote port "));
+                    debugPort.println(newClient.remotePort());
+#endif
                     break;
                 }
             }
 
             if (!found) {
                 // shouldn't happen, but still....
-                if (debug) {
-                    debugPort.print(F("Web connection limit reached from remote port "));
-                    debugPort.println(newClient.remotePort());
-                }
+#ifdef LOG_WEB_DETAILS
+                debugPort.print(F("Web connection limit reached from remote port "));
+                debugPort.println(newClient.remotePort());
+#endif
                 newClient.stop();
             }
         }
@@ -92,8 +118,8 @@ void BasicWebServer::loop(int nrConnections) {
         // an http request ends with a blank line
         while (clients[i].connected() && clients[i].available()) {
             char c = clients[i].read();
-            // read the first line, until \newline or end of buffer.
-            // The buffer was set to \0, so I'll always have a null terminated string, no matter the stop reason
+            // read the first line, until newline or end of buffer.
+            // The buffer was set to \0, and I leave 1 free at the end, so I'll always have a null terminated string, no matter the stop reason
             if (charsRead[i] < sizeof(startreq[i]) - 1) {
                 if (c == '\r' || c == '\n') {
                     // end the line
@@ -108,102 +134,41 @@ void BasicWebServer::loop(int nrConnections) {
             // character) and the line is blank, the http request has ended,
             // so you can send a reply
             if (c == '\n' && currentLineIsBlank[i]) {
-                if (debug) {
-                    debugPort.print(F("Got complete request on slot "));
-                    debugPort.print(i);
-                    debugPort.print(F(": \""));
-                    for (int j = 0; j < sizeof(startreq[i]); j++) {
-                        char c = startreq[i][j];
-                        if (c == 0) {
-                            break;
-                        }
-                        debugPort.print(c);
-                    }
-                    debugPort.println(F("\""));
-                }                
+                // doubly make sure we have a null terminated string
+                startreq[i][sizeof(startreq[i])-1] = '\0';
+#ifdef LOG_WEB_DETAILS
+                debugPort.print(F("Got complete web request on slot "));
+                debugPort.print(i);
+                debugPort.print(F(": \""));
+                debugPort.print(startreq[i]);
+                debugPort.println(F("\""));
+#endif
                 // got all data. Check what the request was for
                 // I only support GET requests
                 char *path = NULL;
-                if (startreq[i][0] == 'G' && startreq[i][1] == 'E' && startreq[i][2] == 'T' && startreq[i][3] == ' ') {
-                    // This was GET
-                    // now read until the first non space
-                    int j = 4;
-                    while ((j < sizeof(startreq[i])-1) && (startreq[i][j] == ' ') && (startreq[i][j] != 0)) {
-                        j++;
+                char* token;
+                char* rest = startreq[i];
+
+                // get the first token, must be GET
+                token = strtok_r(rest, " ", &rest);
+                if (token && (strcasecmp(token, "GET") == 0)) {
+                    // This is a GET request
+                    // get the path
+                    token = strtok_r(rest, " ", &rest);
+                    if (token) {
+                        // this is the path
+                        path = token;
                     }
-                    path = (char *)(&startreq[i][j]);
-                    // and then the first space after that
-                    while ((j < sizeof(startreq[i])-1) && (startreq[i][j] != ' ') && (startreq[i][j] != 0)) {
-                        j++;
-                    }
-                    // terminate the string
-                    startreq[i][j] = 0;
                 }
-                // TODO: add a lookup table for the path, pointing to external functions
-                // TODO fill in /fnd, /snd, /rd, and see how to make "query" easier than 2 buttons
-                // TODO make textarea readonly for the users
-                char buff[512];
-                BufferedPrint bp(clients[i], buff, sizeof(buff));                
-                if (path != NULL) {
-                    if (strcmp(path,"/") == 0) {
-                        // this is the root path
-                        // send a response
-                        sendResponseOK(bp, nrConnections);                        
-                    } else if (strcmp(path,"/cnx") == 0) {
-                        sendResponseHeaderPlainText(bp);
-                        bp.print(nrConnections);
-                    } else if (strcmp(path,"/fnd") == 0) {
-                        sendResponseHeaderPlainText(bp);
-                        // this is the find command
-                        // TODO search for instruments on the bus, see fndl_h()
-                        // mock the response for now
-                        printOption(bp, "gpib,1");
-                        printOption(bp, "gpib,2");
-                    } else if (strncmp(path,"/ex0/gpib,",9) == 0) {
-                        sendResponseHeaderPlainText(bp);
-                        // this is the execute command
-                        // TODO filter out instrument and parameters
-                        // and send the command to the instrument
-                        // and read, if command ends with ?
-                        if (path[strlen(path)-1] == '?') {
-                            // this needs a read command
-                            // TODO get the reply from the instrument
-                            // mock the response for now
-                            bp.print(F("bla"));
-                        } else {
-                            // this is a send command
-                            // TODO filter out instrument and parameters
-                            // and send the command to the instrument
-                        }
-                    } else if (strncmp(path,"/ex1/gpib,",9) == 0) {
-                        sendResponseHeaderPlainText(bp);
-                        // this is the send command
-                        // TODO filter out instrument and parameters
-                        // and send the command to the instrument
-                    } else if (strncmp(path,"/ex2/gpib,",9) == 0) {
-                        sendResponseHeaderPlainText(bp);
-                        // this is the read command
-                        // TODO filter out instrument
-                        // and get the reply from the instrument
-                        // mock the response for now
-                        bp.print(F("bla"));
-                    } else {
-                        // this is not a valid path
-                        // send an error response
-                        sendResponseErr(bp);
-                    }
-                } else {
-                    // send an error response
-                    sendResponseErr(bp);
-                }
-                bp.flush();
+                handleRequest(clients[i], path, nrConnections);
+
                 delay(10);  // yield to send reply
-                if (debug) {
-                    debugPort.print(F("Sent data and Closing Web connection of slot "));
-                    debugPort.print(i);
-                    debugPort.print(F(" from remote port "));
-                    debugPort.println(clients[i].remotePort());                    
-                }
+#ifdef LOG_WEB_DETAILS
+                debugPort.print(F("Sent data and Closing Web connection of slot "));
+                debugPort.print(i);
+                debugPort.print(F(" from remote port "));
+                debugPort.println(clients[i].remotePort());                    
+#endif
                 clients[i].stop();
                 break;
             }
@@ -217,6 +182,111 @@ void BasicWebServer::loop(int nrConnections) {
         }
     }
 };
+
+void BasicWebServer::handleRequest(EthernetClient& client, char* path, int nrConnections) {
+    // This is the main function that handles the request
+    // It will send a response to the client based on the request
+
+    char buff[512];
+    BufferedPrint bp(client, buff, sizeof(buff));
+    bool isOK = false;       
+    if (path != NULL) {
+        if (strcmp(path,"/") == 0) {
+            // this is the root path
+            // send a response
+            sendResponseOK(bp, nrConnections);
+            isOK = true;                     
+        } else if (strcmp(path,"/cnx") == 0) {
+            sendResponseHeaderPlainText(bp);
+            bp.print(nrConnections);
+            isOK = true;
+        } else if (strcmp(path,"/fnd") == 0) {
+            sendResponseHeaderPlainText(bp);
+            // this is the find command
+            // TODO search for instruments on the bus, see fndl_h()
+            // mock the response for now
+            printOption(bp, "gpib,1");
+            printOption(bp, "gpib,2");
+            isOK = true;
+        } else if (strncmp(path,"/ex",3) == 0) {
+            int cmd_type = -1;
+            int addr = -1;
+            int num_chars = -1;
+            int r = sscanf(path, "/ex%d/gpib,%d/%n", &cmd_type, &addr, &num_chars);
+            if (r == 2 && num_chars > 0 && cmd_type >= 0 && cmd_type < 3 && addr > 0 && addr < 32) {
+                // I have a path like /ex1/gpib,1/123
+                char *cmd = path + num_chars;
+                // now decode the command, in place. It can have %NN encoded characters
+                char *src = cmd;
+                char *dst = cmd;
+                bool copied = false;
+                while (*src) {
+                    copied = false;
+                    if (*src == '%') {
+                        // this is a %NN encoded character
+                        // convert the next two characters from a hex value
+                        // and store it in the destination
+                        char ch1 = *(src + 1);
+                        char ch2 = *(src + 2);
+                        if (ch1 && ch2) {
+                            int val1 = decodeHexDigit(ch1);
+                            int val2 = decodeHexDigit(ch2);
+                            if (val1 >= 0 && val2 >= 0) {
+                                // this is a valid %NN encoded character
+                                // convert it to the character and store it in the destination
+                                *dst = (val1 << 4) | val2;
+                                src += 2; // move the source pointer
+                                copied = true;
+                            }
+                        }
+                    }
+                    if (!copied) {
+                        // this is a normal character or something went wrong
+                        // just copy it to the destination
+                        *dst = *src;
+                    }
+                    src++;
+                    dst++;
+                }
+                *dst = '\0'; // null terminate the string
+                // now trim it
+                cmd = trim(cmd);
+
+#ifdef LOG_WEB_DETAILS
+                debugPort.print(F("Got cmdtype "));
+                debugPort.print(cmd_type);
+                debugPort.print(F(" for address "));
+                debugPort.print(addr);
+                debugPort.print(F(": \""));
+                debugPort.print(cmd);
+                debugPort.println(F("\""));
+#endif                
+
+                // Handle the command
+                sendResponseHeaderPlainText(bp);
+                if (cmd_type == 0 || cmd_type == 1) {
+                    // this is the send command
+                    // TODO filter out instrument and parameters
+                    // and send the command to the instrument
+                    isOK = true;
+                }
+                if ((cmd_type == 2) || (cmd_type == 0 && cmd[strlen(cmd)-1] == '?')) {
+                    // this is the read command
+                    // TODO filter out instrument
+                    // and get the reply from the instrument
+                    // mock the response for now
+                    bp.print(F("bla"));
+                    isOK = true;
+                }
+            }
+        }
+    }
+    if (!isOK) {
+        // send an error response
+        sendResponseErr(bp);
+    }
+    bp.flush();
+}
 
 void BasicWebServer::sendResponseErr(BufferedPrint& bp) {
     bp.print(F("HTTP/1.1 404 Not Found\n"));
@@ -272,7 +342,7 @@ void BasicWebServer::sendResponseOK(BufferedPrint& bp, int nrConnections) {
     bp.print(F("::gpib,<i>N</i>::INSTR</b> or <b>...::inst<i>N</i>::INSTR</b>, where <i>N</i> is their address on the GPIB bus (1..30)</td></tr></table>"
         "<h3>Interactive IO:</h3><table><tr><th>Instruments</th><th colspan=\"2\">Command</th></tr> "
         "<tr><td rowspan=\"4\"><select id=\"inst\" size=\"4\" style=\"width: 9ch;\"></select><br /><button onclick=\"find()\">Find</button></td>"
-        "<td width=\"80%\"><input type=\"text\" id=\"cmd\" value=\"\" /></td><td><button onclick=\"self.cmd.value=self.pre.value\">&lt;</button>"
+        "<td width=\"80%\"><input type=\"text\" id=\"cmd\" maxlength=100 value=\"\" /></td><td><button onclick=\"self.cmd.value=self.pre.value\">&lt;</button>"
         "<select id=\"pre\">"));
     printOption(bp, "*IDN?");
     printOption(bp, "*RST");
@@ -288,8 +358,8 @@ void BasicWebServer::sendResponseOK(BufferedPrint& bp, int nrConnections) {
         "<script>\nfunction tick() { fetch(\"/cnx\") .then((response) => { if (!response.ok) { return \"?\"; } return response.text(); }) .then((data) => { self.cnx.innerHTML = data; }); }\nsetInterval(tick, 5000);"
         "function find() { fetch(\"/fnd\") .then((response) => { if (!response.ok) { throw new Error(\"ERR: \" + response.statusText); } return response.text(); }) .then((data) => { self.inst.innerHTML = data; }); };\n"
         "function ex(t) { const inst = self.inst.value; const cmd = self.cmd.value;\nif (inst === \"\") { alert(\"Please select an instrument\"); return; }\n"
-        "var m = \"/ex\" + t.toString() + \"/\" + inst;\n"
-        "if (t < 2) { if (cmd === \"\") { alert(\"Please enter a command\"); return; } m += \"/\" + cmd; }\n"
+        "var m = \"/ex\" + t.toString() + \"/\" + inst + \"/\";\n"
+        "if (t < 2) { if (cmd === \"\") { alert(\"Please enter a command\"); return; } m += cmd; }\n"  // no encodeURIComponent here, decoding that would require a lot of code and ROM
         "fetch(m) .then((response) => { if (!response.ok) { throw new Error(\"ERR: \" + response.statusText); } return response.text(); })\n"
         ".then((data) => { if (t < 2) { self.r.value += \"> \" + inst + \": \" + cmd + \"\\n\"; }\n"
         "if ((t === 2)||((t === 0)&&(data !== \"\"))) { self.r.value += \"< \" + inst + \": \" + data + \"\\n\"; }\n"

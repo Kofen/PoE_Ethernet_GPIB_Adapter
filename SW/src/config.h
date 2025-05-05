@@ -37,9 +37,9 @@
 // setting to 1 messes up the serial menu a bit
 #define LOG_VXI_DETAILS 0
 
-// set LOG_WEB_DETAILS to 0 or 1, depending on whether you want to see Web server details on the debugPort
+// define LOG_WEB_DETAILS if you want to see Web server details on the debugPort
 // setting to 1 messes up the serial menu a bit
-#define LOG_WEB_DETAILS 0
+#define LOG_WEB_DETAILS
 
 // if you activate this, the serial menu will be messier. 
 // Only activate this when you want to see memory usage 

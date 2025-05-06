@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 #include "AR488_Config.h"
-#include <DEVNULL.h>
+// #include <DEVNULL.h>
 
 #include "EthernetStream.h"
 

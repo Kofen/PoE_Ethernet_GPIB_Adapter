@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include "AR488_ComPorts.h"
-#include <DEVNULL.h>
+// #include <DEVNULL.h>
 /***** AR488_ComPorts.cpp, ver. 0.51.18, 26/02/2023 *****/
 
 /***************************************/

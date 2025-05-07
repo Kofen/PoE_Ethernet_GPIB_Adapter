@@ -112,9 +112,9 @@ Support for prologix in pyvisa has been pending since a long time. Depending on 
 
 There are 3 parts:
 
-- the **LED**. It indicates different states: blue for waiting for DHCP, red for error in network or DHCP, green flashing for idle, green/blue flashing for busy
-- the **Web Server** (on port 80): it shows some help texts and the number of connected clients. It is not (yet) interactive.
+- the **LED**. It indicates different states: blue for waiting for DHCP, red for error in network or DHCP, green flashing for idle, green/blue flashing for busy.
 - the **serial console** (via USB): This console shows startup information, ports used, and has a small menu.
+- the **Web Server** (on port 80): it shows some help texts, the number of connected clients, and allows interaction with any of the connected instruments. The latter functionality is however only available with the VXI-11 service, as Prologix does not leave enough ROM space available.
 
 ### The serial menu
 
@@ -124,6 +124,27 @@ It has the following options:
 
 - Setting of IP address. By default, the device starts with DHCP. You can however force a fixed IP address.
 - Setting of the default instrument address (only with VXI-11, as Prologix has its own command for that). The default is 0, meaning: the gateway itself. If you only have 1 instrument connected, or want to designate a "preferred" instrument, you can set it to the address of any instrument on the bus. That way, the gateway becomes transparent, and you can use the default (and the discoverable) VISA connection string to address that instrument.
+
+### The Web server
+
+An example of the web page when using VXI-11:
+
+<kbd>
+<img src="./Img/web_server.png">
+</kbd>
+
+Note that the interactive part is not available when using Prologix.
+
+Explanation of the buttons:
+
+* <kbd>Find</kbd>: scan the GPIB bus for instruments
+* <kbd>&lt;</kbd>: populate the Command field with one of the standard commands from the drop down list
+* <kbd>Query</kbd>: Query the selected instrument. This is the same as a Send followed by a Read provided the command ends with a "?". This is also executed when pressing the "enter" key while entering data in the command text field.
+* <kbd>Send</kbd>: Send command to the selected instrument.
+* <kbd>Read</kbd>: Read from the selected instrument.
+* <kbd>Clear history</kbd>: clear the contents of history.
+
+Do not interact with the instruments via the web interface while you also interact with the instruments from the VXI or Prologix interface.
 
 ---
 

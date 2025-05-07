@@ -344,7 +344,7 @@ void end_of_setup(void) {
     }
 #ifdef USE_WEBSERVER
     debugPort.println(F("Starting Web server on port 80..."));
-    webServer.begin(LOG_WEB_DETAILS);
+    webServer.begin();
 #endif
 
 #ifdef USE_SERIALMENU

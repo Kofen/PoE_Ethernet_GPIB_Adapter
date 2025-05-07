@@ -17,6 +17,16 @@ BasicWebServer webServer;
 #error "DEBUG_ENABLE must be defined"
 #endif
 
+#ifdef INTERFACE_VXI11
+#include "vxi_server.h"
+#include "rpc_bind_server.h"
+extern VXI_Server vxi_server;
+extern RPC_Bind_Server rpc_bind_server;
+#endif
+#ifdef INTERFACE_PROLOGIX
+extern EthernetStream ethernetPort;
+#endif
+
 #ifdef USE_SERIALMENU
 #pragma region Serial Menu
 // The menu handler is very basic. While handling a command, it is blocking.
@@ -141,7 +151,13 @@ void loop_serial_menu(void) {
 #pragma region IP ADDRESS checking
 
 static IPAddress _previous_address(0, 0, 0, 0);
-static bool ethernet_has_problem = false;
+enum ethernet_status {
+    ETHERNET_OK = 0,
+    ETHERNET_NO_IP,
+    ETHERNET_IP_CHANGED,
+    ETHERNET_NO_LINK
+};
+static ethernet_status ethernet_state = ETHERNET_NO_LINK;
 
 // forward declarations
 bool is_valid_IP_assigned(IPAddress current_address);
@@ -158,8 +174,10 @@ bool setup_ipaddress_surveillance_and_show_address(void) {
     debugPort.println(_previous_address);
     if (!is_valid_IP_assigned(_previous_address)) {
         debugPort.println(F("!! No valid IP address assigned. Please check your network settings."));
-        ethernet_has_problem = true;
+        ethernet_state = ETHERNET_NO_IP;
         return false;
+    } else {
+        ethernet_state = ETHERNET_OK;
     }
     return true;
 }
@@ -295,13 +313,13 @@ void setup_led(void) {
 }
 
 void loop_led(bool has_clients) {
-    if (ethernet_has_problem) {
+    if (ethernet_state != ETHERNET_OK) {
         LEDRed();
     } else {
         if (has_clients) {
-            // no red, half green, pulse blue
-            digitalWrite(LED_R, LOW);
-            analogWrite(LED_B, 128);
+            // half red, half green, fast pulse blue
+            analogWrite(LED_R, 200);
+            analogWrite(LED_G, 200);
             LEDPulse(false, false, true);
         } else {
             // all off, pulse green
@@ -362,7 +380,7 @@ void setup_serial_ui_and_led(const __FlashStringHelper* helloStr) {
 // This function is called once at the end of setup.
 // It is to be called at the end of setup, after network initialization.
 void end_of_setup(void) {
-    if (ethernet_has_problem) {
+    if (ethernet_state != ETHERNET_OK) {
         LEDRed();
     } else {
         LEDGreen();
@@ -406,31 +424,52 @@ void loop_serial_ui_and_led(int nrConnections) {
     webServer.loop(nrConnections);
 #endif
 
-    if (onceASecond(false)) {
-        IPAddress current_address = Ethernet.localIP();
+    bool tick = onceASecond(false);
+    if (tick) {
         // maintain DHCP
         Ethernet.maintain();
+    }
+    if (tick || (ethernet_state == ETHERNET_IP_CHANGED && nrConnections > 0)) {
+        bool allow_reset = false;
+        if (ethernet_state == ETHERNET_IP_CHANGED) {
+            allow_reset = (nrConnections > 0);
+        }
+        IPAddress current_address = Ethernet.localIP();
         if (Ethernet.linkStatus() != LinkON) {
-            ethernet_has_problem = true;
+            ethernet_state = ETHERNET_NO_LINK;
             debugPort.println(F("Ethernet link is OFF"));
         } else if (!is_valid_IP_assigned(current_address)) {  // Check if the IP address is valid
-            ethernet_has_problem = true;
+            ethernet_state = ETHERNET_NO_IP;
             debugPort.print(F("IP Address "));
             debugPort.print(current_address);
             debugPort.println(F(" is wrong. Please check DHCP!"));
-        } else if (has_address_changed_since_start(current_address, nrConnections != 0)) {
+        } else if (has_address_changed_since_start(current_address, allow_reset)) {
             // Will have printed if something is wrong
-            ethernet_has_problem = true;
+            if (ethernet_state != ETHERNET_IP_CHANGED) {
+                // All socket servers will need to kill the clients
+                debugPort.println(F("Resetting all client connections..."));
+#ifdef USE_WEBSERVER
+                webServer.killClients();
+#endif                
+#ifdef INTERFACE_VXI11
+                rpc_bind_server.killClients();
+                vxi_server.killClients();
+#endif
+#ifdef INTERFACE_PROLOGIX
+                ethernetPort.killClients();
+#endif
+            }
+            ethernet_state = ETHERNET_IP_CHANGED;
         } else {
             // All is OK
-            // If it was not OK before, reset the ethernet_has_problem flag, and inform the user
-            if (ethernet_has_problem) {
+            // If it was not OK before, reset the ethernet_state flag, and inform the user
+            if (ethernet_state != ETHERNET_OK) {
                 debugPort.println(F("Ethernet link is OK now"));
             }
-            ethernet_has_problem = false;
+            ethernet_state = ETHERNET_OK;
         }
             
-        if (ethernet_has_problem) {
+        if (ethernet_state != ETHERNET_OK) {
             LEDRed();  // This is not strictly needed, as loop_led already does it, but just in case I get held up before the next loop, set it immediately.
         }
 

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ethernet2GPIB</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+      }
+      table {
+        text-align: left;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 2px 8px;
+        white-space: nowrap;
+        vertical-align: top;
+      }
+      button {
+        margin: 0px 2px;
+        color: white;
+        background-color: gray;
+        padding: 2px 12px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        cursor: pointer;
+      }
+      textarea {
+        width: 100%;
+      }
+      input {
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>DEVICE_NAME</h1>
+    <p>Number of client connections: <span id="cnx">0</span></p>
+    <h2>VXI-11 Ethernet Server</h2>
+    <h3>VISA connection strings:</h3>
+    <table>
+      <tr>
+        <td>Controller:</td>
+        <td>
+          <b>TCPIP::a.b.c.d::INSTR</b> (unless you have set the default
+          instrument address to something else than 0)
+        </td>
+      </tr>
+      <tr>
+        <td>Instruments:</td>
+        <td>
+          <b>TCPIP::a.b.c.d::gpib,<i>N</i>::INSTR</b> or
+          <b>...::inst<i>N</i>::INSTR</b>, where <i>N</i> is their address on
+          the GPIB bus (1..30)
+        </td>
+      </tr>
+    </table>
+    <h3>Interactive IO:</h3>
+    <table>
+      <tr>
+        <th>Instruments</th>
+        <th colspan="2">Command</th>
+      </tr>
+      <tr>
+        <td rowspan="4">
+          <select id="inst" size="4" style="width: 9ch;"></select>
+          <br />
+          <button onclick="find()">Find</button>
+        </td>
+        <td width="80%"><input type="text" id="cmd" value="" /></td>
+        <td>
+          <button onclick="self.cmd.value=self.pre.value"><</button>
+          <select id="pre">
+            <option value="*IDN?" selected>*IDN?</option>
+            <option value="*RST">*RST</option>
+            <option value="*OPC?">*OPC?</option>
+            <option value="*CLS">*CLS</option>
+            <option value=":SYSTem:ERRor?">:SYSTem:ERRor?</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2">
+          <button onclick="ex(0)">Execute</button>
+          &nbsp;&nbsp;(<button onclick="ex(1)">Send</button>
+          <button onclick="ex(2)">Read</button>)
+        </td>
+      </tr>
+      <tr>
+        <th colspan="2">History</th>
+      </tr>
+      <tr>
+        <td colspan="2">
+          <textarea id="r" rows="10" cols="80" readonly></textarea><br />
+          <button onclick="self.r.value=''; scroll()">Clear</button>
+        </td>
+      </tr>
+    </table>
+    <script>
+      function tick() {
+        fetch("/cnx")
+          .then((response) => {
+            if (!response.ok) {
+              return "?";
+            }
+            return response.text();
+          })
+          .then((data) => {
+            self.cnx.innerHTML = data;
+          });
+      }
+      setInterval(tick, 5000);
+      function find() {
+        fetch("/fnd")
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("ERR: " + response.statusText);
+            }
+            return response.text();
+          })
+          .then((data) => {
+            self.inst.innerHTML = data;
+          });
+      }
+      function ex(t) {
+        const inst = self.inst.value;
+        const cmd = self.cmd.value;
+        if (inst === "") {
+          alert("Please select an instrument");
+          return;
+        }
+        var m = "/ex" + t.toString() + "/" + inst
+        if (t < 2) {
+          if (cmd === "") {
+            alert("Please enter a command");
+            return;
+          }
+          m += "/" + cmd;
+        }
+        fetch(m)
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("ERR: " + response.statusText);
+            }
+            return response.text();
+          })
+          .then((data) => {
+            if (t < 2) {
+              self.r.value += "> " + inst + ": " + cmd + "\n";
+            }
+            if ((t === 2) || ((t === 0) && (data !== ""))) {
+              self.r.value += "< " + inst + ": " + data + "\n";
+            }
+            scroll();
+          });
+      }
+    </script>
+  </body>
+</html>

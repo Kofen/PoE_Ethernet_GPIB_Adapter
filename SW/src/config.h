@@ -11,9 +11,8 @@
 // define USE_SERIALMENU if you want a basic menu on the serial console for amongst others IP address setting.
 #define USE_SERIALMENU
 
-// define USE_WEBSERVER if you want to use a very basic web page server that serves a static explanation page.
-// It is not interactive, just a cherry on the cake with help text.
-// This is mainly meant to be used with the VXI server, but it should work with the Prologix server as long as ROM permits (it will be very close if not over the limit).
+// define DISABLE_WEB_SERVER if you do not want to use the web server. 
+// The web server serves a static explanation page and maybe some interactive use (see below).
 #ifndef DISABLE_WEB_SERVER
 #define USE_WEBSERVER
 #endif
@@ -37,9 +36,15 @@
 // setting to 1 messes up the serial menu a bit
 #define LOG_VXI_DETAILS 0
 
-// set LOG_WEB_DETAILS to 0 or 1, depending on whether you want to see Web server details on the debugPort
+// define LOG_WEB_DETAILS if you want to see Web server details on the debugPort
 // setting to 1 messes up the serial menu a bit
-#define LOG_WEB_DETAILS 0
+//#define LOG_WEB_DETAILS
+
+// define WEB_INTERACTIVE for the interactive web server
+// This should also work with the Prologix, but at present it is over the limit, hence the inclusion only with VXI11.
+#ifdef INTERFACE_VXI11
+#define WEB_INTERACTIVE
+#endif
 
 // if you activate this, the serial menu will be messier. 
 // Only activate this when you want to see memory usage 

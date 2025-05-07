@@ -163,6 +163,14 @@ bool BasicWebServer::have_free_connections(void) {
     return false;
 }
 
+void BasicWebServer::killClients(void) {
+    for (int i = 0; i < MAX_WEB_CLIENTS; i++) {
+        if (clients[i]) {
+            clients[i].stop(); 
+        }
+    }    
+}
+
 void BasicWebServer::loop(int nrConnections) {
     // simple TCP server based on 'server.accept()', meaning I must handle the lifecycle of the client
     // It is not blocking for input, but blocks for output
@@ -297,11 +305,11 @@ void BasicWebServer::handleRequest(EthernetClient& client, char* path, int nrCon
             // send a response
             sendResponseOK(bp, nrConnections);
             isOK = true;                     
+#ifdef WEB_INTERACTIVE            
         } else if (strcmp(path,"/cnx") == 0) {
             sendResponseHeaderPlainText(bp);
             bp.print(nrConnections);
             isOK = true;
-#ifdef WEB_INTERACTIVE
         } else if (strcmp(path,"/fnd") == 0) {
             sendResponseHeaderPlainText(bp);
             // this is the find command

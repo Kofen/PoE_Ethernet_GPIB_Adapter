@@ -1,6 +1,6 @@
 #pragma once
 
-#define DEVICE_NAME "Ethernet2GPIB Gateway v1.1 (AR488 v0.53.03)\n"
+#define DEVICE_NAME "Ethernet2GPIB Gateway v1.2 (AR488 v0.53.03)\n"
 
 #define LED_R 13
 #define LED_G 39

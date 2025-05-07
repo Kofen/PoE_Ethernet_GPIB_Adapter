@@ -13,6 +13,7 @@ public:
     BasicWebServer();
     void begin();
     void loop(int nrConnections);
+    void killClients(void);
 
 private:
     int nr_connections(void);

@@ -123,6 +123,20 @@ enum transmitModes {
   TM_SEND
 };
 
+enum readStopReasons {
+  RS_NONE,
+  RS_EOI,
+  RS_EOR,
+  RS_EOT,
+  RS_EB,
+  RS_ERR,
+  RS_MAXSIZE,
+  RS_TIMEOUT,
+  RS_BREAK,
+  RS_ABORT,
+  RS_ATN,
+  RS_UNDEF
+};
 
 /***** ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ *****/
 /***** GPIB COMMAND & STATUS DEFINITIONS *****/
@@ -211,7 +225,7 @@ public:
   bool sendSecondaryCmd(uint8_t paddr, uint8_t saddr, char * data, uint8_t dsize);
   enum gpibHandshakeStates readByte(uint8_t *db, bool readWithEoi, bool *eoi);
   enum gpibHandshakeStates writeByte(uint8_t db, bool isLastByte);
-  bool receiveData(Stream &dataStream, bool detectEoi, bool detectEndByte, uint8_t endByte);
+  bool receiveData(Stream &dataStream, bool detectEoi, bool detectEndByte, uint8_t endByte, size_t maxSize = 0, readStopReasons *stopReason = NULL);
   void sendData(const char *data, uint8_t dsize);
   void clearDataBus();
   void setControlVal(uint8_t value);

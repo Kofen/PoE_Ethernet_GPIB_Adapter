@@ -42,7 +42,9 @@ no changes
 
 ## AR488_GPIBbus.cpp and AR488_GPIBbus.h
 
-* Changed `void sendData(char *data, uint8_t dsize);` into `void sendData(const char *data, uint8_t dsize);`  (const)
+* Changed `void sendData(char *data, uint8_t dsize);`: added `const` qualifier to `*data`
+* Changed `bool receiveData(Stream &dataStream, bool detectEoi, bool detectEndByte, uint8_t endByte)`, added `size_t maxSize = 0, uint8_t *stopReason = NULL` parameters, and their handling
+* Added `enum readStopReasons`
 * Added a couple of sections with `#ifdef AR488_GPIBconf_EXTEND`, in order to store the IP address in the config.
 
 ## AR488_Layouts.cpp and AR488_Layouts.h

@@ -7,7 +7,7 @@
 #include "rpc_packets.h"
 #include "rpc_enums.h"
 
-/*  The definition of the buffers to hold packet data	*/
+/*  The definition of the buffers to hold packet data */
 
 uint8_t udp_read_buffer[UDP_READ_SIZE]; // only for udp bind requests
 uint8_t udp_send_buffer[UDP_SEND_SIZE]; // only for udp bind responses
@@ -28,13 +28,6 @@ uint8_t vxi_send_buffer[VXI_SEND_SIZE]; // only for vxi responses
 uint32_t get_bind_packet(EthernetUDP &udp)
 {
     uint32_t len = udp.read(udp_request_packet_buffer, UDP_READ_SIZE);
-
-    if (len > 0) {
-        LOG_F("\nReceived %d bytes from %s: %d\n", len, udp.remoteIP().toString().c_str(), udp.remotePort());
-        LOG_DUMP(udp_request_packet_buffer, len)
-        LOG_F("\n");
-    }
-
     return len;
 }
 
@@ -58,12 +51,11 @@ uint32_t get_bind_packet(EthernetClient &tcp)
     len = (tcp_request_prefix->length & 0x7fffffff); // mask out the FRAG bit
 
     if (len > 4) {
-        len = min(len, (uint32_t)(TCP_READ_SIZE - 4)); // do not read more than the buffer can hold
+        len = min(len, (uint32_t)(sizeof(tcp_read_buffer) - 4)); // do not read more than the buffer can hold
 
         tcp.readBytes(tcp_request_packet_buffer, len);
-        LOG_F("\nReceived %d bytes from %s: %d\n", len + 4, tcp.remoteIP().toString().c_str(), tcp.remotePort());
-        LOG_DUMP(tcp_request_prefix_buffer, len + 4)
-        LOG_F("\n");
+    } else {
+        len = 0; // no data read
     }
 
     return len;
@@ -77,29 +69,34 @@ uint32_t get_bind_packet(EthernetClient &tcp)
 
   @param  tcp   The EthernetClient connection from which to read.
 
-  @return The length of data received.
+  @return The length of data received. Will be 0xffffffff if the packet is too large.
 */
 uint32_t get_vxi_packet(EthernetClient &tcp)
 {
-    uint32_t len;
+    uint32_t read_len;
+    uint32_t return_len;
 
     vxi_request_prefix->length = 0; // set the length to zero in case the following read fails
 
     tcp.readBytes(vxi_request_prefix_buffer, 4); // get the FRAG + LENGTH field
 
-    len = (vxi_request_prefix->length & 0x7fffffff); // mask out the FRAG bit
+    return_len = (vxi_request_prefix->length & 0x7fffffff); // mask out the FRAG bit
 
-    if (len > 4) {
-        len = min(len, (uint32_t)(VXI_READ_SIZE - 4)); // do not read more than the buffer can hold
+    if (return_len > 4) {
+        if (return_len >= sizeof(vxi_read_buffer) - 4) {
+            return_len = 0xffffffff; // packet too large
+            read_len = (uint32_t)(sizeof(vxi_read_buffer) - 4); // do not read more than the buffer can hold
+        }
+        else {
+            read_len = return_len;
+        }
 
-        tcp.readBytes(vxi_request_packet_buffer, len);
-
-        LOG_F("\nReceived %d bytes from %s: %d\n", len + 4, tcp.remoteIP().toString().c_str(), tcp.remotePort());
-        LOG_DUMP(vxi_request_prefix_buffer, len + 4)
-        LOG_F("\n");
+        tcp.readBytes(vxi_request_packet_buffer, read_len); 
+    } else {
+        return_len = 0; // no data to read
     }
 
-    return len;
+    return return_len;
 }
 
 /*!
@@ -118,10 +115,6 @@ void send_bind_packet(EthernetUDP &udp, uint32_t len)
     udp.beginPacket(udp.remoteIP(), udp.remotePort());
     udp.write(udp_response_packet_buffer, len);
     udp.endPacket();
-
-    LOG_F("\nSent %d bytes to %s:%d\n", len, udp.remoteIP().toString().c_str(), udp.remotePort());
-    LOG_DUMP(udp_response_packet_buffer, len)
-    LOG_F("\n");
 }
 
 /*!
@@ -150,10 +143,6 @@ void send_bind_packet(EthernetClient &tcp, uint32_t len)
 
     tcp.write(tcp_response_prefix_buffer, len + 4); // add 4 to the length to account for the tcp_response_prefix
     tcp.flush();
-
-    LOG_F("\nSent %d bytes to %s:%d\n", len, tcp.remoteIP().toString().c_str(), tcp.remotePort());
-    LOG_DUMP(tcp_response_prefix_buffer, len + 4)
-    LOG_F("\n");
 }
 
 /*!
@@ -185,10 +174,6 @@ void send_vxi_packet(EthernetClient &tcp, uint32_t len)
 
     tcp.write(vxi_response_prefix_buffer, len + 4); // add 4 to the length to account for the vxi_response_prefix
     tcp.flush();
-
-    LOG_F("\nSent %d bytes to %s:%d\n", len, tcp.remoteIP().toString().c_str(), tcp.remotePort());
-    LOG_DUMP(vxi_response_prefix_buffer, len + 4)
-    LOG_F("\n");
 }
 
 /*!

@@ -33,19 +33,23 @@ void send_vxi_packet(EthernetClient &tcp, uint32_t len);
 
 void fill_response_header(uint8_t *buffer, uint32_t xid);
 
+// The following 2 should be 1024 according to the VXI specification
+#define TARGET_MAX_WRITE_REQUEST_DATA_SIZE 1024  // maximum size of the data in a write request
+#define TARGET_MAX_READ_RESPONSE_DATA_SIZE 1024  // maximum size of the data in a read response
+
 /*!
   @brief  Enumeration of the sizes of the various packet buffers.
 
   The buffers must allow sufficient space to receive the longest
-  expected data for the type of packet involved.
+  expected data for the type of packet involved. The numbers below must be at boundaries of 4 bytes
 */
 enum packet_buffer_sizes {
-    UDP_READ_SIZE = 64,  ///< The UDP bind request should be 56 bytes
-    UDP_SEND_SIZE = 32,  ///< The UDP bind response should be 28 bytes
-    TCP_READ_SIZE = 64,  ///< The TCP bind request should be 56 bytes + 4 bytes for prefix
-    TCP_SEND_SIZE = 32,  ///< The TCP bind response should be 28 bytes + 4 bytes for prefix
-    VXI_READ_SIZE = 256, ///< The VXI requests should never exceed 128 bytes, but extra allowed
-    VXI_SEND_SIZE = 256  ///< The VXI responses should never exceed 128 bytes, but extra allowed
+    UDP_READ_SIZE = 64,  ///< The UDP bind request should be at least 40 bytes
+    UDP_SEND_SIZE = 32,  ///< The UDP bind response should be at least 24 or 28 bytes, and 4 for padding
+    TCP_READ_SIZE = 64,  ///< The TCP bind request should be at least 40 bytes + 4 bytes for prefix
+    TCP_SEND_SIZE = 36,  ///< The TCP bind response should be at least 24 or 28 bytes + 4 bytes for prefix, and 4 for padding
+    VXI_READ_SIZE = TARGET_MAX_WRITE_REQUEST_DATA_SIZE+64,///< The VXI requests size, is struct size + MAX_WRITE_REQUEST_DATA_SIZE + 4 bytes for prefix.
+    VXI_SEND_SIZE = TARGET_MAX_READ_RESPONSE_DATA_SIZE+44 ///< The VXI response size, struct size + MAX_READ_RESPONSE_DATA_SIZE + 4 bytes for prefix, and 4 for padding
 };
 
 /*  declaration of data buffers  */
@@ -108,7 +112,7 @@ struct tcp_prefix_packet {
 
   All RPC/VXI requests will start with the data described
   by this structure. Depending on the type of request, there
-  may be additional data as well.
+  may be additional data as well, but we don't use it (yet).
 */
 struct rpc_request_packet {
     big_endian_32_t xid;             ///< Transaction id (should be checked to make sure it matches, but we will just pass it back)
@@ -123,12 +127,15 @@ struct rpc_request_packet {
     big_endian_32_t verifier_h;      ///< Security data (not used in this context)
 };
 
+static_assert(sizeof(rpc_request_packet) <= UDP_READ_SIZE, "rpc_request_packet is too big");
+static_assert(sizeof(rpc_request_packet) <= TCP_READ_SIZE-4, "rpc_request_packet is too big");
+
 /*!
   @brief  Structure of the minimum RPC response packet.
 
   All RPC/VXI responses will start with the data described
   by this structure. Depending on the type of response, there
-  may be additional data as well.
+  may be additional data as well, but we don't use it (yet).
 */
 struct rpc_response_packet {
     big_endian_32_t xid;         ///< Transaction id (we just pass it back what we received in the request)
@@ -138,6 +145,9 @@ struct rpc_response_packet {
     big_endian_32_t verifier_h;  ///< Security data (not used in this context)
     big_endian_32_t rpc_status;  ///< Status of accepted message (see rpc::rpc_status)
 };
+
+static_assert(sizeof(rpc_response_packet) <= UDP_SEND_SIZE, "rpc_response_packet is too big");
+static_assert(sizeof(rpc_response_packet) <= TCP_SEND_SIZE-4, "rpc_response_packet is too big");
 
 /*!
   @brief  Structure of the RPC bind request packet.
@@ -157,11 +167,14 @@ struct bind_request_packet {
     big_endian_32_t credentials_h;    ///< Security data (not used in this context)
     big_endian_32_t verifier_l;       ///< Security data (not used in this context)
     big_endian_32_t verifier_h;       ///< Security data (not used in this context)
-    big_endian_32_t getport_program;  ///< We can ignore this
-    big_endian_32_t getport_version;  ///< We can ignore this
-    big_endian_32_t getport_protocol; ///< We can ignore this
-    big_endian_32_t getport_port;     ///< we can ignore this
+    // big_endian_32_t getport_program;  ///< We ignore this
+    // big_endian_32_t getport_version;  ///< We ignore this
+    // big_endian_32_t getport_protocol; ///< We ignore this
+    // big_endian_32_t getport_port;     ///< We ignore this
 };
+
+static_assert(sizeof(bind_request_packet) <= UDP_READ_SIZE, "bind_request_packet is too big");
+static_assert(sizeof(bind_request_packet) <= TCP_READ_SIZE-4, "bind_request_packet is too big");
 
 /*!
   @brief  Structure of the RPC bind response packet.
@@ -180,6 +193,9 @@ struct bind_response_packet {
     big_endian_32_t rpc_status;  ///< Status of accepted message (see rpc::rpc_status)
     big_endian_32_t vxi_port;    ///< The port on which the VXI_Server is currently listening
 };
+
+static_assert(sizeof(bind_response_packet) <= UDP_SEND_SIZE, "bind_response_packet is too big");
+static_assert(sizeof(bind_response_packet) <= TCP_SEND_SIZE-4, "bind_response_packet is too big");
 
 /*!
   @brief  Structure of the VXI_11_CREATE_LINK request packet.
@@ -201,9 +217,15 @@ struct create_request_packet {
     big_endian_32_t client_id;       ///< implementation specific id (we can ignore)
     big_endian_32_t lockDevice;      ///< request to lock device; we will ignore this
     big_endian_32_t lock_timeout;    ///< time to wait for the lock; we will ignore this
-    big_endian_32_t data_len;        ///< length of the string in data field
-    char data[];                     ///< name of the instrument (e.g., instr0)
+    big_endian_32_t data_len;        ///< length of the string in data field, should be < MAX_INSTRUMENT_NAME_LENGTH
+    char data[];                     ///< name of the instrument (e.g., instr0), see MAX_INSTRUMENT_NAME_LENGTH
 };
+
+#define MAX_INSTRUMENT_NAME_LENGTH (VXI_READ_SIZE - (14*4) - 4) ///< maximum length of the instrument name (incl null terminator)
+
+static_assert(MAX_INSTRUMENT_NAME_LENGTH >= TARGET_MAX_WRITE_REQUEST_DATA_SIZE, "MAX_INSTRUMENT_NAME_LENGTH is too small");
+
+static_assert((sizeof(create_request_packet) + MAX_INSTRUMENT_NAME_LENGTH) == VXI_READ_SIZE - 4, "create_request_packet is wrong size");
 
 /*!
   @brief  Structure of the VXI_11_CREATE_LINK response packet.
@@ -223,8 +245,10 @@ struct create_response_packet {
     big_endian_32_t error;            ///< Error code (see rpc::errors)
     big_endian_32_t link_id;          ///< A unique link id to be used by subsequent calls in this session
     big_endian_32_t abort_port;       ///< Port number on which the device will listen for an asynchronous abort request
-    big_endian_32_t max_receive_size; ///< maximum amount of data that can be received on each write command
+    big_endian_32_t max_receive_size; ///< maximum amount of data that can be received on each write command, see MAX_WRITE_REQUEST_DATA_SIZE
 };
+
+static_assert(sizeof(create_response_packet) < VXI_SEND_SIZE - 4, "create_response_packet is too big");
 
 /*!
   @brief  Structure of the VXI_11_DESTROY_LINK request packet.
@@ -246,6 +270,8 @@ struct destroy_request_packet {
     big_endian_32_t link_id;         ///< Unique link id generated for this session (see CREATE_LINK)
 };
 
+static_assert(sizeof(destroy_request_packet) < VXI_READ_SIZE - 4, "destroy_request_packet is too big");
+
 /*!
   @brief  Structure of the VXI_11_DESTROY_LINK response packet.
 
@@ -261,6 +287,8 @@ struct destroy_response_packet {
     big_endian_32_t rpc_status;  ///< Status of accepted message (see rpc::rpc_status)
     big_endian_32_t error;       ///< Error code (see rpc::errors)
 };
+
+static_assert(sizeof(destroy_response_packet) < VXI_SEND_SIZE - 4, "destroy_response_packet is too big");
 
 /*!
   @brief  Structure of the VXI_11_DEV_READ request packet.
@@ -282,12 +310,14 @@ struct read_request_packet {
     big_endian_32_t verifier_l;      ///< Security data (not used in this context)
     big_endian_32_t verifier_h;      ///< Security data (not used in this context)
     big_endian_32_t link_id;         ///< Unique link id generated for this session (see CREATE_LINK)
-    big_endian_32_t request_size;    ///< Maximum amount of data requested (we will assume that we never send more than can be received))
+    big_endian_32_t request_size;    ///< Maximum amount of data requested, also see MAX_READ_RESPONSE_DATA_SIZE
     big_endian_32_t io_timeout;      ///< How long to wait before timing out the data request (we will ignore)
     big_endian_32_t lock_timeout;    ///< How long to wait before timing out a lock request (we will ignore)
     big_endian_32_t flags;           ///< Used to indicate whether an "end" character is supplied (we will ignore)
     char term_char;                  ///< The "end" character (we will ignore)
 };
+
+static_assert(sizeof(read_request_packet) < VXI_READ_SIZE - 4, "read_request_packet is too big");
 
 /*!
   @brief  Structure of the VXI_11_DEV_READ response packet.
@@ -305,9 +335,14 @@ struct read_response_packet {
     big_endian_32_t rpc_status;  ///< Status of accepted message (see rpc::rpc_status)
     big_endian_32_t error;       ///< Error code (see rpc::errors)
     big_endian_32_t reason;      ///< Indicates why the data read ended (see rpc::reasons)
-    big_endian_32_t data_len;    ///< Length of the data returned
-    char data[];                 ///< The data returned
+    big_endian_32_t data_len;    ///< Length of the data returned, should be < MAX_READ_RESPONSE_DATA_SIZE
+    char data[];                 ///< The data returned, see MAX_READ_RESPONSE_DATA_SIZE
 };
+
+#define MAX_READ_RESPONSE_DATA_SIZE (VXI_SEND_SIZE - (9*4) - 4 - 4) ///< Maximum size of the data returned in a read response
+
+static_assert(MAX_READ_RESPONSE_DATA_SIZE == TARGET_MAX_READ_RESPONSE_DATA_SIZE, "MAX_READ_RESPONSE_DATA_SIZE is wrong");
+static_assert((sizeof(read_response_packet) + MAX_READ_RESPONSE_DATA_SIZE) == VXI_SEND_SIZE - 4 - 4, "read_response_packet is wrong size");
 
 /*!
   @brief  Structure of the VXI_11_DEV_WRITE request packet.
@@ -331,10 +366,17 @@ struct write_request_packet {
     big_endian_32_t link_id;         ///< Unique link id generated for this session (see CREATE_LINK)
     big_endian_32_t io_timeout;      ///< How long to wait before timing out the data request (we will ignore)
     big_endian_32_t lock_timeout;    ///< How long to wait before timing out a lock request (we will ignore)
-    big_endian_32_t flags;           ///< Used to indicate whether an "end" character is supplied (we will ignore)
-    big_endian_32_t data_len;        ///< Length of the data sent
-    char data[];                     ///< The data sent
+    big_endian_32_t flags;           ///< Used to indicate whether an "end" character is supplied
+    big_endian_32_t data_len;        ///< Length of the data sent, should be < MAX_WRITE_REQUEST_DATA_SIZE
+    char data[];                     ///< The data sent, see MAX_WRITE_REQUEST_DATA_SIZE
 };
+
+#define MAX_WRITE_REQUEST_DATA_SIZE (VXI_READ_SIZE - (15*4) - 4) ///< Maximum size of the data sent in a write request.
+// also used for maxRecvSize / max_receive_size
+
+static_assert(MAX_WRITE_REQUEST_DATA_SIZE == TARGET_MAX_WRITE_REQUEST_DATA_SIZE, "MAX_WRITE_REQUEST_DATA_SIZE is incorrect");
+
+static_assert((sizeof(write_request_packet) + MAX_WRITE_REQUEST_DATA_SIZE) == VXI_READ_SIZE - 4, "write_request_packet is wrong size");
 
 /*!
   @brief  Structure of the VXI_11_DEV_WRITE response packet.
@@ -352,6 +394,8 @@ struct write_response_packet {
     big_endian_32_t error;       ///< Error code (see rpc::errors)
     big_endian_32_t size;        ///< Number of bytes sent
 };
+
+static_assert(sizeof(write_response_packet) < VXI_SEND_SIZE - 4, "write_response_packet is too big");
 
 /*  constant variables used to access the data buffers as the various structures defined above  */
 

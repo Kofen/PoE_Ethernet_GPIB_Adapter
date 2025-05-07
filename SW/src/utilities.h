@@ -9,11 +9,6 @@
 #include <Ethernet.h>
 #include "AR488_ComPorts.h"
 
-#define LOG(a)
-#define LOG_LN(a)
-#define LOG_F(...)
-#define LOG_DUMP(buf,len)
-
 #define htonl(x) ( ((x)<<24 & 0xFF000000UL) | \
                    ((x)<< 8 & 0x00FF0000UL) | \
                    ((x)>> 8 & 0x0000FF00UL) | \

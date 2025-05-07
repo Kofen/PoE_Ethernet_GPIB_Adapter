@@ -109,7 +109,11 @@ int maintainDataPort() {
         debugPort.print("\\t");
       } else if (ch < 0x20 || ch > 0x7E) {
         debugPort.print("\\x");
-        debugPort.print(ch, HEX);
+        unsigned char uc = (unsigned char)ch;
+        if (uc <= 0xf) {
+          debugPort.print('0');
+        }
+        debugPort.print(uc, HEX);
       } else {
         debugPort.print(ch);
       }

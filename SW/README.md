@@ -47,6 +47,8 @@ no changes
 * Added `enum readStopReasons`
 * Added a couple of sections with `#ifdef AR488_GPIBconf_EXTEND`, in order to store the IP address in the config.
 
+Work is under way in the upstream repo to include at least part of that.
+
 ## AR488_Layouts.cpp and AR488_Layouts.h
 
 Replaced the entire `CUSTOM PIN LAYOUT SECTION` in the .cpp file.

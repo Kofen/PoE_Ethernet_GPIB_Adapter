@@ -97,6 +97,19 @@ enum gpibHandshakeStates {
 };
 
 
+enum receiveState: uint8_t {
+  RECEIVE_INIT,     // Initial state
+  RECEIVE_BREAK,    // Receive interrupted by user command
+  RECEIVE_ATN,      // Receive interrupted by ATN
+  RECEIVE_IFC,      // Receive interrupted by IFC
+  RECEIVE_EOI,      // Receive OK, terminated with EOI
+  RECEIVE_ENDCHAR,  // Receive OK, terminated with custom end character
+  RECEIVE_ENDL,     // Receive OK, terminated line of text (CR/LF)
+  RECEIVE_LIMIT,    // Receive max byte count reached
+  RECEIVE_ERR       // Receive timeout or error
+};
+
+
 #define IFC_BIT (1 << 0)
 #define NDAC_BIT (1 << 1)
 #define NRFD_BIT (1 << 2)
@@ -123,20 +136,6 @@ enum transmitModes {
   TM_SEND
 };
 
-enum readStopReasons {
-  RS_NONE,
-  RS_EOI,
-  RS_EOR,
-  RS_EOT,
-  RS_EB,
-  RS_ERR,
-  RS_MAXSIZE,
-  RS_TIMEOUT,
-  RS_BREAK,
-  RS_ABORT,
-  RS_ATN,
-  RS_UNDEF
-};
 
 /***** ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ *****/
 /***** GPIB COMMAND & STATUS DEFINITIONS *****/
@@ -225,8 +224,8 @@ public:
   bool sendSecondaryCmd(uint8_t paddr, uint8_t saddr, char * data, uint8_t dsize);
   enum gpibHandshakeStates readByte(uint8_t *db, bool readWithEoi, bool *eoi);
   enum gpibHandshakeStates writeByte(uint8_t db, bool isLastByte);
-  bool receiveData(Stream &dataStream, bool detectEoi, bool detectEndByte, uint8_t endByte, size_t maxSize = 0, readStopReasons *stopReason = NULL);
-  void sendData(const char *data, uint8_t dsize);
+  enum receiveState receiveData(Stream &dataStream, bool detectEoi, bool detectEndByte, uint8_t endByte, int maxSize = 0);
+  void sendData(const char *data, uint8_t dsize, bool isLastPacket = true);
   void clearDataBus();
   void setControlVal(uint8_t value);
   void setDataVal(uint8_t value);

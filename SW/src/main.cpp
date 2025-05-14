@@ -117,7 +117,7 @@ class SCPI_handler : public SCPI_handler_interface {
             gpibBus.cfg.eoi = 0;
             gpibBus.cfg.eos = 3;  // do not append EOI at end of the command
         }
-        gpibBus.sendData(data, len);
+        gpibBus.sendData(data, len, is_end);
         if (!is_end) {
             // restore the original settings
             gpibBus.cfg.eoi = had_eoi;
@@ -159,31 +159,28 @@ class SCPI_handler : public SCPI_handler_interface {
                 gpibBus.addressDevice(address, 0xFF, TOTALK);
             }
         }
-        enum readStopReasons stopReason;
-        gpibBus.receiveData(dataStream, readWithEoi, detectEndByte, endByte, max_size, &stopReason);  // get the data from the bus and send out
+        enum receiveState stopReason;
+        stopReason = gpibBus.receiveData(dataStream, readWithEoi, detectEndByte, endByte, max_size);  // get the data from the bus and send out
         // debugPort.print(F("GPIB max size = "));
         // debugPort.print(max_size);
         // debugPort.print(F("; stop reason= "));
         // debugPort.println(stopReason);
-        if (stopReason == RS_MAXSIZE)
+        if (stopReason == RECEIVE_LIMIT)
             return SRS_MAXSIZE;
         // for anything but max size, we need to unaddress the device
         gpibBus.unAddressDevice();
         gpibBus.cfg.paddr = 0xFF;  // mark as unaddressed
 
-        if (stopReason == RS_EOI) {
+        if (stopReason == RECEIVE_EOI) {
             // EOI signal detected
             return SRS_EOI;
-        } else if (stopReason == RS_EOT) {
+        } else if (stopReason == RECEIVE_ENDL) {
             // EOT signal detected
             return SRS_END;
-        } else if (stopReason == RS_EB) {
+        } else if (stopReason == RECEIVE_ENDCHAR) {
             // End Byte detected
             return SRS_END;
-        } else if (stopReason == RS_TIMEOUT) {
-            // Timeout detected
-            return SRS_TIMEOUT;
-        } else if (stopReason == RS_NONE) {
+        } else if (stopReason == RECEIVE_ERR) {
             // No stop reason detected
             return SRS_NONE;
         } else return SRS_ERROR;

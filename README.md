@@ -94,7 +94,7 @@ The VXI-11 service will allow you to set up multiple instrument connections at t
 - 6 instruments: only if you disable the web server (use the compile option `-DDISABLE_WEB_SERVER`)
 - 7 or more: not possible via VXI-11
 
-This does not mean that you cannot physically connect more instruments to the gateway, it just means that you cannot connect to more of them, via your client software, *at the same time*.
+This does not mean that you cannot physically connect more instruments to the gateway, it just means that you cannot connect to more of them, via your client software, *at the same time*. Additional connections should fail to connect and fall in timeout, existing connections will not be closed.
 
 Also, be aware that the GPIB bus is a shared bus. Even if you have connected to multiple instruments, you might encounter problems if you run multiple commands or queries *at the same time*, via for example multiprocessing or threading.
 

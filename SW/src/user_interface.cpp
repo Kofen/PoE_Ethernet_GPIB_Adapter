@@ -17,6 +17,20 @@ BasicWebServer webServer;
 #error "DEBUG_ENABLE must be defined"
 #endif
 
+// Uncomment the define below if you want to see the red LED until a client is connected after the IP address has changed
+// Might be useful when using prologix, as it doesn't have discovery
+// #define UPON_IP_ADDRESS_RED_LED_UNTIL_CLIENT_CONNECTED
+
+#ifdef INTERFACE_VXI11
+#include "vxi_server.h"
+#include "rpc_bind_server.h"
+extern VXI_Server vxi_server;
+extern RPC_Bind_Server rpc_bind_server;
+#endif
+#ifdef INTERFACE_PROLOGIX
+extern EthernetStream ethernetPort;
+#endif
+
 #ifdef USE_SERIALMENU
 #pragma region Serial Menu
 // The menu handler is very basic. While handling a command, it is blocking.
@@ -141,7 +155,13 @@ void loop_serial_menu(void) {
 #pragma region IP ADDRESS checking
 
 static IPAddress _previous_address(0, 0, 0, 0);
-static bool ethernet_has_problem = false;
+enum ethernet_status {
+    ETHERNET_OK = 0,
+    ETHERNET_NO_IP,
+    ETHERNET_IP_CHANGED,
+    ETHERNET_NO_LINK
+};
+static ethernet_status ethernet_state = ETHERNET_NO_LINK;
 
 // forward declarations
 bool is_valid_IP_assigned(IPAddress current_address);
@@ -158,26 +178,53 @@ bool setup_ipaddress_surveillance_and_show_address(void) {
     debugPort.println(_previous_address);
     if (!is_valid_IP_assigned(_previous_address)) {
         debugPort.println(F("!! No valid IP address assigned. Please check your network settings."));
-        ethernet_has_problem = true;
+        ethernet_state = ETHERNET_NO_IP;
         return false;
+    } else {
+        ethernet_state = ETHERNET_OK;
     }
     return true;
 }
 
-bool has_address_changed_since_start(IPAddress current_address) {
+/**
+ * @brief See if the IP address has changed since the start of the program.
+ * 
+ * Will print any messages on the debug port.
+ * 
+ * @param current_address the current IP address
+ * @param allow_reset if the address should be reset to the current address, if valid
+ * @return true when the address has changed, and a reset was not requested
+ */
+bool has_address_changed_since_start(IPAddress current_address, bool allow_reset = false) {
     if (!is_valid_IP_assigned(_previous_address) && is_valid_IP_assigned(current_address)) {
-        // I now have a valid address, DHCP was probably late.
-        // This part of the code should never be reached more than once.
+        // I used to have an invalid address (DHCP), and I now also have a valid address
+        // DHCP was probably late.
         debugPort.print(F("IP Address has been assigned: "));
         debugPort.println(current_address);
         _previous_address = current_address;
-        ethernet_has_problem = false;
         return false;
     }
-    if (current_address != _previous_address) {
-        ethernet_has_problem = true;
-        return true;
+    if (is_valid_IP_assigned(_previous_address) && is_valid_IP_assigned(current_address)) {
+        // I used to have a valid address, and I now also have a valid address
+        if (current_address != _previous_address) {
+            // The address has changed
+            debugPort.print(F("IP Address has changed to "));
+            debugPort.print(current_address);
+            if (allow_reset) {
+                // Reset the previous address to the current address
+                _previous_address = current_address;
+                debugPort.println();
+                return false;
+            } else {
+                // The address has changed, but I don't want to reset it
+                debugPort.println(F(", Please inform your clients!"));
+                return true;
+            }
+        }
+        return false;
     }
+
+    // default case: !is_valid_IP_assigned(current_address). That is handled outside this function.
     return false;
 }
 
@@ -270,13 +317,13 @@ void setup_led(void) {
 }
 
 void loop_led(bool has_clients) {
-    if (ethernet_has_problem) {
+    if (ethernet_state != ETHERNET_OK) {
         LEDRed();
     } else {
         if (has_clients) {
-            // no red, half green, pulse blue
-            digitalWrite(LED_R, LOW);
-            analogWrite(LED_B, 128);
+            // half red, half green, fast pulse blue
+            analogWrite(LED_R, 200);
+            analogWrite(LED_G, 200);
             LEDPulse(false, false, true);
         } else {
             // all off, pulse green
@@ -337,7 +384,7 @@ void setup_serial_ui_and_led(const __FlashStringHelper* helloStr) {
 // This function is called once at the end of setup.
 // It is to be called at the end of setup, after network initialization.
 void end_of_setup(void) {
-    if (ethernet_has_problem) {
+    if (ethernet_state != ETHERNET_OK) {
         LEDRed();
     } else {
         LEDGreen();
@@ -353,6 +400,8 @@ void end_of_setup(void) {
 #endif
 
     debugPort.println(F("Setup complete."));
+    display_freeram();
+    debugPort.println("");
     
 #ifdef USE_SERIALMENU
     myMenu.ShowMenu();
@@ -379,32 +428,57 @@ void loop_serial_ui_and_led(int nrConnections) {
     webServer.loop(nrConnections);
 #endif
 
-    if (onceASecond(false)) {
-        IPAddress current_address = Ethernet.localIP();
+    bool tick = onceASecond(false);
+    if (tick) {
         // maintain DHCP
         Ethernet.maintain();
+    }
+    if (tick || (ethernet_state == ETHERNET_IP_CHANGED && nrConnections > 0)) {
+        bool allow_reset = false;
+        if (ethernet_state == ETHERNET_IP_CHANGED) {
+#ifdef UPON_IP_ADDRESS_RED_LED_UNTIL_CLIENT_CONNECTED
+            allow_reset = (nrConnections > 0);
+#else
+            allow_reset = true;
+#endif
+        }
+        IPAddress current_address = Ethernet.localIP();
         if (Ethernet.linkStatus() != LinkON) {
-            ethernet_has_problem = true;
+            ethernet_state = ETHERNET_NO_LINK;
             debugPort.println(F("Ethernet link is OFF"));
         } else if (!is_valid_IP_assigned(current_address)) {  // Check if the IP address is valid
-            ethernet_has_problem = true;
+            ethernet_state = ETHERNET_NO_IP;
             debugPort.print(F("IP Address "));
             debugPort.print(current_address);
             debugPort.println(F(" is wrong. Please check DHCP!"));
-        } else if (has_address_changed_since_start(current_address)) {
-            ethernet_has_problem = true;
-            debugPort.print(F("!! IP Address changed: "));
-            debugPort.print(current_address);
-            debugPort.println(F(" Please inform your clients!"));
+        } else if (has_address_changed_since_start(current_address, allow_reset)) {
+            // Will have printed if something is wrong
+            if (ethernet_state != ETHERNET_IP_CHANGED) {
+                // All socket servers will need to kill the clients
+                debugPort.println(F("Resetting all client connections..."));
+#ifdef USE_WEBSERVER
+                webServer.killClients();
+#endif                
+#ifdef INTERFACE_VXI11
+                rpc_bind_server.killClients();
+                vxi_server.killClients();
+#endif
+#ifdef INTERFACE_PROLOGIX
+                ethernetPort.killClients();
+#endif
+            }
+            ethernet_state = ETHERNET_IP_CHANGED;
         } else {
-            if (ethernet_has_problem) {
+            // All is OK
+            // If it was not OK before, reset the ethernet_state flag, and inform the user
+            if (ethernet_state != ETHERNET_OK) {
                 debugPort.println(F("Ethernet link is OK now"));
             }
-            ethernet_has_problem = false;
+            ethernet_state = ETHERNET_OK;
+        }
             
-        if (ethernet_has_problem) {
-            LEDRed();
-            }
+        if (ethernet_state != ETHERNET_OK) {
+            LEDRed();  // This is not strictly needed, as loop_led already does it, but just in case I get held up before the next loop, set it immediately.
         }
 
 #ifdef LOG_STATS_ON_CONSOLE

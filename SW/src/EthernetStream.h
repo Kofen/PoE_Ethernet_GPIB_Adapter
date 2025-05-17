@@ -11,6 +11,7 @@ public:
   
     bool begin(uint32_t port);
     int maintain(void);
+    void killClients(void);
     int available() override;
     int read() override;
     int peek() override;

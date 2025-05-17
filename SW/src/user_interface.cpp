@@ -17,6 +17,10 @@ BasicWebServer webServer;
 #error "DEBUG_ENABLE must be defined"
 #endif
 
+// Uncomment the define below if you want to see the red LED until a client is connected after the IP address has changed
+// Might be useful when using prologix, as it doesn't have discovery
+// #define UPON_IP_ADDRESS_RED_LED_UNTIL_CLIENT_CONNECTED
+
 #ifdef INTERFACE_VXI11
 #include "vxi_server.h"
 #include "rpc_bind_server.h"
@@ -432,7 +436,11 @@ void loop_serial_ui_and_led(int nrConnections) {
     if (tick || (ethernet_state == ETHERNET_IP_CHANGED && nrConnections > 0)) {
         bool allow_reset = false;
         if (ethernet_state == ETHERNET_IP_CHANGED) {
+#ifdef UPON_IP_ADDRESS_RED_LED_UNTIL_CLIENT_CONNECTED
             allow_reset = (nrConnections > 0);
+#else
+            allow_reset = true;
+#endif
         }
         IPAddress current_address = Ethernet.localIP();
         if (Ethernet.linkStatus() != LinkON) {

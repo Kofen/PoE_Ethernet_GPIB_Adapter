@@ -30,11 +30,13 @@
 // For the VXI server:
 #define VXI11_PORT 9010
 // Maximum number of clients for the VXI server:
-// Max MAX_SOCK_NUM sockets on the device. You will likely not even be able to reach that number, because of other sockets open or busy closing
+// Max sockets on the device. You will likely not even be able to reach that number, because of other sockets open or busy closing
+// MAX_SOCK_NUM is defined in the Ethernet library, and is 4 for W5100 and 8 for W5200 and W5500.
 #define MAX_VXI_CLIENTS MAX_SOCK_NUM
-// set LOG_VXI_DETAILS to 0 or 1, depending on whether you want to see VXI details on the debugPort
-// setting to 1 messes up the serial menu a bit
-#define LOG_VXI_DETAILS 0
+
+// define LOG_VXI_DETAILS, if you want to see VXI details on the debugPort
+// It will mess up the serial menu a bit
+// #define LOG_VXI_DETAILS
 
 // define LOG_WEB_DETAILS if you want to see Web server details on the debugPort
 // setting to 1 messes up the serial menu a bit
@@ -46,11 +48,10 @@
 #define WEB_INTERACTIVE
 #endif
 
-// if you activate this, the serial menu will be messier. 
 // Only activate this when you want to see memory usage 
 // and other details in auto refresh on the console.
 // #define LOG_STATS_ON_CONSOLE
 
 // EEPROM use: 
-// Writing the 24AA256 is somehow broken, so we can also write via the GPIB configuration
+// Writing the 24AA256 is somehow broken, so we can also write via the GPIB configuration via AR488_GPIBconf_EXTEND
 #define AR488_GPIBconf_EXTEND

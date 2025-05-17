@@ -39,3 +39,15 @@ Requires 3 servers, and 1 client socket per instrument:
 * you may also add mDNS
 
 For compatibility with basic pyvisa use, you only need DEVICE_CORE, but the guidelines say you should also support the others.
+
+
+# Large replies
+
+VXI-11 DEVICE_READ returns contain 3 main flags:
+
+* Requested count Reached
+* Termination Character Seen
+* EOI Set
+
+On large replies, the latter is False. In that case, a new DEVICE_READ must be issued by the client, and the server will return the next chunk of data, etc.
+The data itself is considered opaque: if a large list of values is returned, any separators in the list are not aligned with the chunks.

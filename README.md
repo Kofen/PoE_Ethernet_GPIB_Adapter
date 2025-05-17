@@ -58,7 +58,7 @@ This code can produce either a VXI-11.2 device, or a Prologix device (the ROM is
 VXI-11.2 allows discovery over the network, and uses the following VISA connection strings:
 
 - Controller[^1]: `TCPIP::{IP address}::INSTR` (unless you have set the default instrument address to something else than 0)
-- Instruments: `TCPIP::{IP address}::gpib,N::INSTR` or `TCPIP::{IP address}::instN::INSTR`, where `N` is their address on the GPIB bus (1..30)
+- Instruments: `TCPIP::{IP address}::gpibY,N::INSTR` or `TCPIP::{IP address}::instN::INSTR` (and even the legacy form `TCPIP::{IP address}::hpibY,N::INSTR`), all where `N` is their address on the GPIB bus (1..30), and `Y` is simply ignored.
 
 Example: `TCPIP::192.168.7.105::gpib,2::INSTR` for instrument with GPIB address 2 on the gateway having IP address 192.168.7.105.
 
@@ -66,34 +66,45 @@ Example: `TCPIP::192.168.7.105::gpib,2::INSTR` for instrument with GPIB address 
 
 ### VXI-11.2 compatibility
 
-With the limited resources, this device is meant to work with the most common tools, like for example pyVisa. It is not a full implementation, and lacks the following advanced features:
+With the limited resources, this device is meant to work with the most common tools, like for example pyVisa. It is not a full implementation, and lacks the following advanced features (for now):
 
 - secondary instrument addresses
 - async VXI-11 operations
 - instrument locking via VXI-11
 - VXI-11 interrupts
 - the VXI-11 abort channel
+- for now: complete end of reply handling. This will be corrected. It now only supports reading on eoi, and therefor misses correct handling of
+  - terminating character supplied in the read request packet
+  - maximum size requested in the read request packet
 
 It is discoverable via UDP, but there is no publication via mDNS (yet).
 
----
+Not all of the above will be possible with the limited resources the device has, but let us know if you encounter any problems, and we'll look if it is possible to make the implementation more complete.
 
-## The number of instruments you can connect
+### The number of instruments you can connect
 
-The GPIB bus protocol itself allows up to 30 instruments. This does not mean you can connect 30 instruments to the gateway, as the gateway device has its electrical limits, depending on the length of the cables and instruments themselves. And also the software has its limits.
+The GPIB bus protocol itself allows up to 30 instruments. This does not mean you can effectively control 30 instruments via the gateway, as the gateway device has its electrical limits, depending on the length of the cables and instruments themselves. And also the software has its limits:
 
-The Prologix service will accept as many instruments as the gateway hardware can drive reliably.
+The Prologix service will allow only 1 client software connection and will allow you to interact with only 1 instrument at any given time: you must switch between the instruments you want to address.
 
-The VXI-11 service is easier to integrate with many tools, but it consumes more resources on the gateway. The Ethernet chip can only maintain a limited number of network sockets, and each instrument requires a separate socket with VXI-11. Prologix uses only 1 socket, no matter the number of instruments. This means that regardless of the limitations of the hardware, there is a limit to the number of instruments you can connect to via VXI-11 compatible client software:
+The VXI-11 service will allow you to set up multiple instrument connections at the same time. It will allow your client software to be easier to set up and maintain, and will make it easier to interact with multiple instruments, whether they are connected to the gateway or not. There is a however a limit to the number of open connections to the gateway:
 
 - up to 4 instruments: no restriction
 - 5 instruments: only if you do not use the web server
 - 6 instruments: only if you disable the web server (use the compile option `-DDISABLE_WEB_SERVER`)
 - 7 or more: not possible via VXI-11
 
-This does not mean that you cannot physically connect more instruments to the gateway, it just means that you cannot connect to more of them, via your client software, at the same time.
+This does not mean that you cannot physically connect more instruments to the gateway, it just means that you cannot connect to more of them, via your client software, *at the same time*. Additional connections should fail to connect and fall in timeout, existing connections will not be closed.
 
-Also, be aware that the GPIB bus is a shared bus. Do not try to control instruments on the bus from different software clients at the same time. VXI-11 is somewhat more forgiving in this matter, but the prologix service simply doesn't allow multiple connections.
+Also, be aware that the GPIB bus is a shared bus. Even if you have connected to multiple instruments, you might encounter problems if you run multiple commands or queries *at the same time*, via for example multiprocessing or threading.
+
+### Large replies or large requests
+
+Both VXI-11 and prologix support large replies and large commands and requests. Although the gateway supports it, be aware that instruments themselves often have rather low limits with regards to the the size of the commands and requests. Often it is best to send commands one at a time.
+
+### Prologix and pyvisa
+
+Support for prologix in pyvisa has been pending since a long time. Depending on your situation, you can try to bypass it by faking the prologix service as being a raw socket service (ex `TCPIP::192.168.7.206::1234::SOCKET`), and then mix the SCPI commands with the correct `+++` commands.
 
 ---
 
@@ -107,8 +118,8 @@ There are 3 parts:
   - red single flash when the assigned IP address changes
   - green slow flashing for idle
   - green/blue faster flashing when clients are connected
-- the **Web Server** (on port 80): it shows some help texts, the number of connected clients, and allows interaction with any of the connected instruments. The latter functionality is however only available with the VXI-11 service, as Prologix does not leave enough ROM space available.
 - the **serial console** (via USB): This console shows startup information, ports used, and has a small menu.
+- the **Web Server** (on port 80): it shows some help texts, the number of connected clients, and allows interaction with any of the connected instruments. The latter functionality is however only available with the VXI-11 service, as Prologix does not leave enough ROM space available.
 
 ### The serial menu
 
@@ -150,7 +161,7 @@ And all the source code for all the parts should be in their respective folders 
 
 ## How to compile
 
-The easiest is for compilation with PlatformIO, from the [SW](/SW) directory.
+The easiest is compilation with PlatformIO, from the [SW](/SW) directory. There are separate targets for the VXI-11 and Prologix versions.
 
 ## License
 

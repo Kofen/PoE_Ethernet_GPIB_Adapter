@@ -8,17 +8,18 @@
 #include "rpc_packets.h"
 #include "vxi_server.h"
 
-void RPC_Bind_Server::begin(bool debug = false)
+void RPC_Bind_Server::begin()
 {
     /*
       Initialize the UDP and TCP servers to listen on
       the BIND_PORT port.
     */
-    this->debug = debug;
     udp.begin(rpc::BIND_PORT);
     tcp.begin();
 
-    if (debug) debugPort.println(F("Listening for RPC_BIND requests on UDP and TCP port 111"));
+#ifdef LOG_VXI_DETAILS
+    debugPort.println(F("Listening for RPC_BIND requests on UDP and TCP port 111"));
+#endif
 }
 
 /*!
@@ -52,7 +53,9 @@ void RPC_Bind_Server::loop()
         if (udp.parsePacket() > 0) {
             len = get_bind_packet(udp);
             if (len > 0) {
-                if (debug) debugPort.println(F("UDP packet received"));
+#ifdef LOG_VXI_DETAILS                
+                debugPort.println(F("UDP packet received"));
+#endif                
                 process_request(true);
                 send_bind_packet(udp, sizeof(bind_response_packet));
             }
@@ -62,7 +65,9 @@ void RPC_Bind_Server::loop()
             if (tcp_client) {
                 len = get_bind_packet(tcp_client);
                 if (len > 0) {
-                    if (debug) debugPort.println(F("TCP packet received"));
+#ifdef LOG_VXI_DETAILS                    
+                    debugPort.println(F("TCP packet received"));
+#endif                    
                     process_request(false);
                     send_bind_packet(tcp_client, sizeof(bind_response_packet));
                 }
@@ -95,24 +100,24 @@ void RPC_Bind_Server::process_request(bool onUDP)
     if (rpc_request->program != rpc::PORTMAP) {
         rc = rpc::PROG_UNAVAIL;
 
-        if (debug) {
-            debugPort.print(F("ERROR: Invalid program (expected PORTMAP = 0x186A0; received 0x"));
-            debugPort.printf("%08x)\n", (uint32_t)(rpc_request->program));
-        }
+#ifdef LOG_VXI_DETAILS
+        debugPort.print(F("ERROR: Invalid program (expected PORTMAP = 0x186A0; received 0x"));
+        debugPort.printf("%08x)\n", (uint32_t)(rpc_request->program));
+#endif
     } else if (rpc_request->procedure != rpc::GET_PORT) {
         rc = rpc::PROC_UNAVAIL;
 
-        if (debug) {
-            debugPort.print(F("ERROR: Invalid procedure (expected GET_PORT = 3; received "));
-            debugPort.printf("%u)\n", (uint32_t)(rpc_request->procedure));
-        }
+#ifdef LOG_VXI_DETAILS
+        debugPort.print(F("ERROR: Invalid procedure (expected GET_PORT = 3; received "));
+        debugPort.printf("%u)\n", (uint32_t)(rpc_request->procedure));
+#endif
     } else {
         // i.e., if it is a valid PORTMAP request
-        if (debug) {
-            debugPort.print(F("PORTMAP command received on "));
-            debugPort.println(onUDP?F("UDP"):F("TCP"));
-        }
-        
+
+#ifdef LOG_VXI_DETAILS
+        debugPort.print(F("PORTMAP command received on "));
+        debugPort.println(onUDP?F("UDP"):F("TCP"));
+#endif        
         port = vxi_server.allocate();
 
         /*  The logic in the loop() routine should not allow
@@ -123,14 +128,12 @@ void RPC_Bind_Server::process_request(bool onUDP)
 
         if (port == 0) {
             rc = rpc::GARBAGE_ARGS; // not really the appropriate response, but we need to signal failure somehow!
-            if (debug) {
-                debugPort.println(F("ERROR: PORTMAP failed: vxi_server not available."));
-            }
+#ifdef LOG_VXI_DETAILS
+            debugPort.println(F("ERROR: PORTMAP failed: vxi_server not available."));
         } else {
-            if (debug) {
-                debugPort.print(F("PORTMAP: assigned to port "));
-                debugPort.printf("%d\n", port);
-            }
+            debugPort.print(F("PORTMAP: assigned to port "));
+            debugPort.printf("%d\n", port);
+#endif
         }
     }
 

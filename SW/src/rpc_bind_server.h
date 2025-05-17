@@ -47,7 +47,7 @@ class RPC_Bind_Server
       @brief  Initializes the RPC_Bind_Server by setting up
               the TCP and UDP servers.
     */
-    void begin(bool debug = false);
+    void begin();
 
     /*!
       @brief  Call this at least once per main loop to
@@ -59,7 +59,6 @@ class RPC_Bind_Server
 
   protected:
     void process_request(bool onUDP);
-    bool debug;
 
     VXI_Server &vxi_server;   ///< Reference to the VXI_Server
     EthernetUDP udp;          ///< UDP server

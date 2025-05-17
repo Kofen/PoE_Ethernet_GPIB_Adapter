@@ -42,8 +42,12 @@ no changes
 
 ## AR488_GPIBbus.cpp and AR488_GPIBbus.h
 
-* Changed `void sendData(char *data, uint8_t dsize);` into `void sendData(const char *data, uint8_t dsize);`  (const)
+* Changed `void sendData(char *data, uint8_t dsize, );`: added `const` qualifier to `*data` and added `bool isLastPacket = true` parameter
+* Changed `receiveData(Stream &dataStream, bool detectEoi, bool detectEndByte, uint8_t endByte)`, added `int maxSize = 0` parameter, plus handling of the return value
+* Added `enum receiveState`
 * Added a couple of sections with `#ifdef AR488_GPIBconf_EXTEND`, in order to store the IP address in the config.
+
+All but AR488_GPIBconf_EXTEND is under way for inclusion in the upstream repo, and is partially integrated in version 0.53.11. See Twilight-Logic/AR488 PR #61  [Allow maxSize in receiveData()](https://github.com/Twilight-Logic/AR488/pull/61)
 
 ## AR488_Layouts.cpp and AR488_Layouts.h
 

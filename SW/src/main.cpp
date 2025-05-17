@@ -82,38 +82,6 @@ extern GPIBbus gpibBus;
 // #define DUMMY_DEVICE
 
 /**
- * @brief a helper class to capture data printed by receiveData (using Stream.write(uint8_t ch)) to an external buffer
- */
-class bufStream : public Stream {
-   public:
-    bufStream(char *buf, size_t size) : buffer(buf), bufferSize(size) {}
-
-    size_t write(uint8_t ch) override {
-        // debugPort.print((char)ch);
-        if (buffer_pos < bufferSize) {
-            buffer[buffer_pos++] = ch;
-            return 1;
-        }
-        return 0;
-    }
-
-    int available() { return 0; }  // dummy
-    int read() { return 0; }       // dummy
-    int peek() { return 0; }       // dummy
-
-    size_t len(void) { return buffer_pos; }
-
-    void flush() {
-        buffer_pos = 0;  // clear the buffer
-    }
-
-   private:
-    char *buffer;
-    size_t bufferSize;
-    size_t buffer_pos = 0;
-};
-
-/**
  * @brief SCPI handler interface
  *
  * This class handles the communication between the VXI servers and the SCPI parser or the devices.
@@ -122,7 +90,7 @@ class SCPI_handler : public SCPI_handler_interface {
    public:
     SCPI_handler() {}
 
-    void write(int address, const char *data, size_t len) override {
+    void write(int address, const char *data, size_t len, bool is_end = true) override {
 #ifdef DUMMY_DEVICE
         debugPort.print(F("SCPI write: "));
         printBuf(data, len);
@@ -134,20 +102,39 @@ class SCPI_handler : public SCPI_handler_interface {
         if (address == 0) return; // if controller: no writing to the bus
 
         // Send data to the GPIB bus
-        gpibBus.cfg.paddr = address;
-        gpibBus.cfg.saddr = 0xFF;  // secondary address is not used
-        if (!gpibBus.haveAddressedDevice()) gpibBus.addressDevice(address, 0xFF, TOLISTEN);
-        gpibBus.sendData(data, len);
-        gpibBus.unAddressDevice();
+        if (gpibBus.cfg.paddr != address) {
+            // if the address is different, we need to address the device
+            gpibBus.cfg.paddr = address;
+            gpibBus.cfg.saddr = 0xFF;  // secondary address is not used
+            if (!gpibBus.haveAddressedDevice() || !gpibBus.isDeviceAddressedToListen()) {
+                gpibBus.addressDevice(address, 0xFF, TOLISTEN);
+            }
+        }
+        bool had_eoi = gpibBus.cfg.eoi;
+        bool had_eos = gpibBus.cfg.eos;
+        if (!is_end) {
+            // if this is not the end of the command, so do not send eoi
+            gpibBus.cfg.eoi = 0;
+            gpibBus.cfg.eos = 3;  // do not append EOI at end of the command
+        }
+        gpibBus.sendData(data, len, is_end);
+        if (!is_end) {
+            // restore the original settings
+            gpibBus.cfg.eoi = had_eoi;
+            gpibBus.cfg.eos = had_eos;
+        } else {
+            gpibBus.unAddressDevice();
+            gpibBus.cfg.paddr = 0xFF;  // mark as unaddressed
+        }
 #endif
     }
 
-    bool read(int address, char *data, size_t *len, size_t max_len) override {
+    SCPI_handler_read_stop_reasons read(int address, vxiBufStream &dataStream, size_t max_size) override {
 #ifdef DUMMY_DEVICE
         // Simulate a device response
-        memset(data, 0, max_len);
-        *len = snprintf(data, max_len, "SCPI response");
-        return true;
+        uint8_t data[] = "SCPI response";
+        dataStream.write(data, strlen(data));
+        return SRS_EOI;
 #else
         if (address == 0) {
             // maybe we need to address a device directly on the bus
@@ -155,23 +142,48 @@ class SCPI_handler : public SCPI_handler_interface {
         }
         // dummy reply if I am addressed
         if (address == 0) {
-            strncpy(data, DEVICE_NAME, max_len);
-            *len = strlen(data);
-            return true;  // no address
+            uint8_t deviceName[] = DEVICE_NAME;
+            dataStream.write(deviceName, sizeof(DEVICE_NAME) - 1); // remove the null terminator
+            return SRS_EOI;
         }
-        bufStream buf = bufStream(data, max_len);  ///< Buffer stream for incoming data
-
+        
         bool readWithEoi = true;
         bool detectEndByte = false;
         uint8_t endByte = 0;
 
-        gpibBus.cfg.paddr = address;
-        gpibBus.cfg.saddr = 0xFF;  // secondary address is not used
-        gpibBus.addressDevice(address, 0xFF, TOTALK);     // tel device 'paddr' to talk. If you do this and the device has nothing to say, you might get an error.
-        gpibBus.receiveData(buf, readWithEoi, detectEndByte, endByte);  // get the data from the bus and send out
+        if (gpibBus.cfg.paddr != address) {
+            // if the address is different, we need to address the device
+            gpibBus.cfg.paddr = address;
+            gpibBus.cfg.saddr = 0xFF;  // secondary address is not used
+            if (!gpibBus.haveAddressedDevice() || !gpibBus.isDeviceAddressedToTalk()) {
+                gpibBus.addressDevice(address, 0xFF, TOTALK);
+            }
+        }
+        enum receiveState stopReason;
+        stopReason = gpibBus.receiveData(dataStream, readWithEoi, detectEndByte, endByte, max_size);  // get the data from the bus and send out
+        // debugPort.print(F("GPIB max size = "));
+        // debugPort.print(max_size);
+        // debugPort.print(F("; stop reason= "));
+        // debugPort.println(stopReason);
+        if (stopReason == RECEIVE_LIMIT)
+            return SRS_MAXSIZE;
+        // for anything but max size, we need to unaddress the device
         gpibBus.unAddressDevice();
-        *len = buf.len();
-        return true;
+        gpibBus.cfg.paddr = 0xFF;  // mark as unaddressed
+
+        if (stopReason == RECEIVE_EOI) {
+            // EOI signal detected
+            return SRS_EOI;
+        } else if (stopReason == RECEIVE_ENDL) {
+            // EOT signal detected
+            return SRS_END;
+        } else if (stopReason == RECEIVE_ENDCHAR) {
+            // End Byte detected
+            return SRS_END;
+        } else if (stopReason == RECEIVE_ERR) {
+            // No stop reason detected
+            return SRS_NONE;
+        } else return SRS_ERROR;
 #endif
     }
 
@@ -240,6 +252,7 @@ void setup() {
         debugPort.print(F("The devices's default address points to GPIB address "));
         debugPort.println(gpibBus.cfg.caddr);
     }
+    gpibBus.cfg.paddr = 0xFF;  // no device is unadressed yet
     // Set up the IP address    
     IPAddress ip = IPAddress(ipbuff);
     Ethernet.init(7);
@@ -260,10 +273,10 @@ void setup() {
     // This would be the place to add mdns, but none of the main mdns libraries support the present ethernet library
 #ifdef INTERFACE_VXI11
     debugPort.println(F("Starting VXI-11 TCP RPC server on port " STR(VXI11_PORT) "..."));
-    vxi_server.begin(VXI11_PORT, LOG_VXI_DETAILS);
+    vxi_server.begin(VXI11_PORT);
 
     debugPort.println(F("Starting VXI-11 port mappers on TCP and UDP on port 111..."));
-    rpc_bind_server.begin(LOG_VXI_DETAILS);
+    rpc_bind_server.begin();
     debugPort.println(F("VXI-11 servers started"));
 #endif
 

@@ -8,4 +8,3 @@ void setup_gpibBusConfig(void);
 // needed only for prologix
 void setup_prologix(void);
 int loop_prologix(void);
-void killClients_prologix(void);

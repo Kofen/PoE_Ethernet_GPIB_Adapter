@@ -107,6 +107,7 @@ class VXI_Server
     void begin(uint32_t port);
     int nr_connections(void);
     bool have_free_connections(void);
+    void killClients(void);
 
     uint32_t allocate();
     uint32_t port() { return vxi_port; }

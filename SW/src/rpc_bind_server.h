@@ -55,6 +55,8 @@ class RPC_Bind_Server
     */
     void loop();
 
+    void killClients(void) {};
+
   protected:
     void process_request(bool onUDP);
 

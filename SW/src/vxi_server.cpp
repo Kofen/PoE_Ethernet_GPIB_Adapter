@@ -161,6 +161,15 @@ int VXI_Server::loop()
     return nr_connections();
 }
 
+void VXI_Server::killClients(void)
+{
+    for (int i = 0; i < MAX_VXI_CLIENTS; i++) {
+        if (clients[i]) {
+            clients[i].stop();
+        }
+    }
+}
+
 bool VXI_Server::handle_packet(EthernetClient &client, int slot, bool overflow = false)
 {
     // Handle a low level VXI packet

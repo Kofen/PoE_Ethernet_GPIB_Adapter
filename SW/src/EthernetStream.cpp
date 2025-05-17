@@ -90,10 +90,17 @@ int EthernetStream::maintain(void) {
         client.stop();
         client = EthernetClient();
     }
-    // TOOD: would it be better to just call checkClient?
+    // TODO: Improve this. This only checks if a client is connected and has sent data
     if (client) {
         return 1;
     } else {
         return 0;
+    }
+}
+
+void EthernetStream::killClients(void) {
+    if (client) {
+        client.stop();
+        client = EthernetClient();
     }
 }

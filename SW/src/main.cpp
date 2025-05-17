@@ -202,8 +202,8 @@ class SCPI_handler : public SCPI_handler_interface {
 #pragma region VXI related Socket servers and helpers
 
 static SCPI_handler scpi_handler;                    ///< The bridge from the vxi server to the SCPI command handler
-static VXI_Server vxi_server(scpi_handler);          ///< The vxi server
-static RPC_Bind_Server rpc_bind_server(vxi_server);  ///< The RPC_Bind_Server for the vxi server
+VXI_Server vxi_server(scpi_handler);          ///< The vxi server
+RPC_Bind_Server rpc_bind_server(vxi_server);  ///< The RPC_Bind_Server for the vxi server
 
 #pragma endregion
 

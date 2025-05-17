@@ -105,8 +105,8 @@ There are 3 parts:
   - blue solid for waiting for DHCP
   - red solid for error in network or DHCP
   - red single flash when the assigned IP address changes
-  - green flashing for idle
-  - green/blue flashing for busy
+  - green slow flashing for idle
+  - green/blue faster flashing for busy
 - the **Web Server** (on port 80): it shows some help texts, the number of connected clients, and allows interaction with any of the connected instruments. The latter functionality is however only available with the VXI-11 service, as Prologix does not leave enough ROM space available.
 - the **serial console** (via USB): This console shows startup information, ports used, and has a small menu.
 

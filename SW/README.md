@@ -5,7 +5,7 @@
 In order to program the adapter you first need to flash the Optiboot bootloader via Jtag with an UPDI programmer(Atmel ICE, serial updi or similar).
 After this is done at least once, it can be programmed through the usb-c interface.
 
-In order to program via usb-c, use `avrdude` or `avrdudess` to program your gpib adapter. Select the correct serial port if your device, and the `.elf` or `.hex` file youwant to use. If your hex file is not in the folder where you run avrdude, update the path accordingly:
+In order to program via usb-c, you can use platformio (from the `\SW` directory), or `avrdude` or `avrdudess`. If you use one of the latter 2, select the correct serial port of your device, and the `.elf` or `.hex` file you want to use. If your hex file is not in the folder where you run avrdude, update the path accordingly:
 
 `avrdude -c arduino -p atmega4809 -P {Your_serial_port} -D -U flash:w:{path_to_your_hex__or_elf_file}`
 

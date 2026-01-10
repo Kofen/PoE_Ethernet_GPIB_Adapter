@@ -102,6 +102,8 @@ Also, be aware that the GPIB bus is a shared bus. Even if you have connected to 
 
 Both VXI-11 and prologix support large replies and large commands and requests. Although the gateway supports it, be aware that instruments themselves often have rather low limits with regards to the the size of the commands and requests. Often it is best to send commands one at a time.
 
+Know that if you use VXI-11 and pyvisa, you may need to set the `instr.chunk_size` to a higher value if you use very large replies, and you get a `VI_ERROR_INV_PROT` error.
+
 ### Prologix and pyvisa
 
 Support for prologix in pyvisa has been pending since a long time. Depending on your situation, you can try to bypass it by faking the prologix service as being a raw socket service (ex `TCPIP::192.168.7.206::1234::SOCKET`), and then mix the SCPI commands with the correct `++` commands.
@@ -159,9 +161,11 @@ Latest version is avaiable under [Releases](https://github.com/Kofen/PoE_Etherne
 
 And all the source code for all the parts should be in their respective folders in the repro. If anything is missing, let me know!
 
-## How to compile
+## How to compile and how to flash
 
 The easiest is compilation with PlatformIO, from the [SW](/SW) directory. There are separate targets for the VXI-11 and Prologix versions.
+
+See the [SW/README.md](SW/README.md) for more information.
 
 ## License
 

@@ -3,7 +3,15 @@
 ## Programming
 
 In order to program the adapter you first need to flash the Optiboot bootloader via Jtag with an UPDI programmer(Atmel ICE, serial updi or similar).
-After this is done, it can be programmed through the usb-c interface.
+After this is done at least once, it can be programmed through the usb-c interface.
+
+In order to program via usb-c, you can use platformio (from the `\SW` directory), or `avrdude` or `avrdudess`.
+
+If you use `avrdude`, select the correct serial port of your device, and the `.elf` or `.hex` file you want to use, and run as follows:
+
+`avrdude -c arduino -p atmega4809 -P {Your_serial_port} -D -U flash:w:{path_to_your_hex__or_elf_file}`
+
+If you use `avrdudess`, the GUI version of avrdude, note that for ELF firmware files, use the `*.*` filter in file open dialog, there is no `*.elf` option for some reason.
 
 # AR488, what has changed and how to integrate a new version of AR488
 

@@ -256,6 +256,23 @@ def read_device(device_address: str, device_bus_address: int, device_type: str, 
             voltages = []
     else:
         voltages = inst.query_ascii_values(readcmd)
+        # inst.write(readcmd)
+        # time.sleep(PROLOGIX_SLEEP)
+        
+        # # Read raw data in chunks until complete
+        # raw_buffer = b''
+        # while True:
+        #     try:
+        #         chunk = inst.read_raw()
+        #         print(f"Read chunk of size {len(chunk)}")
+        #         if len(chunk) == 0:
+        #             break
+        #         raw_buffer += chunk
+        #     except:
+        #         break
+        
+        # # Parse the buffer as ASCII values
+        # voltages = [float(x) for x in raw_buffer.decode('ascii').strip().split(',')]
     if device_type == "K2000":
         inst.write("feed:control next")
     if device_type == "DMM6500":

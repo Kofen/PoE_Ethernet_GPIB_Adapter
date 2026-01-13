@@ -680,25 +680,16 @@ enum receiveState GPIBbus::receiveData(Stream &dataStream, bool detectEoi, bool 
   }
 #endif
 
-  // Return controller to idle state
-  if (cfg.cmode == 2) {
-
-    // Untalk bus and unlisten controller
-/*
-    if (unAddressDevice()) {
-#ifdef DEBUG_GPIBbus_RECEIVE
-      DB_PRINT(F("Failed to untalk bus"), "");
-#endif
+  // Don't go idle if maxSize is set and receive limit state reached
+  if (rstate != RECEIVE_LIMIT) {
+    // Set to idle state
+    if (cfg.cmode == 2) {
+      setControls(CIDS);    // Controller mode
+    } else {
+      setControls(DIDS);    // Device mode
     }
-*/
-    // Set controller back to idle state
-    setControls(CIDS);
-
-  } else {
-    // Set device back to idle state
-    setControls(DIDS);
   }
-
+  
   // Reset break flag
   if (txBreak) txBreak = false;
 
@@ -1181,7 +1172,7 @@ enum gpibHandshakeStates GPIBbus::readByte(uint8_t *db, bool readWithEoi, bool *
 
   // Otherwise return stage
 #ifdef DEBUG_GPIBbus_RECEIVE
-  if ((gpibState == HANDSHAKE_STARTED) || (gpibState == UNASSERTED_NDAC)) {
+  if ((gpibState == HANDSHAKE_START) || (gpibState == DATA_ACCEPTED)) {
     DB_PRINT(F("DAV timout!"), "");
   } else {
     DB_PRINT(F("Handshake error!"), "");

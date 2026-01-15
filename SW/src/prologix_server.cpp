@@ -235,9 +235,9 @@ static const char cmdHelpPrologix[] PROGMEM = {
 
 
 static const char cmdHelpExtended[] PROGMEM = {
-  "/nExtended custom commands: see AR488 documentation\n"
-  
-// >>> Modified: removed the rest of this help message, it doesn't fit in the AT4809
+  ""
+ // >>> Modified: removed the rest of this help message, it doesn't fit in the AT4809
+  // "/nExtended custom commands:\n"
   // "aspoll:\tSerial poll all instruments (alias: ++spoll all)\n"
   // "dcl:\tSend unaddressed (all) device clear  [power on reset] (is the rst?)\n"
   // "default:\tSet configuration to controller default settings\n"

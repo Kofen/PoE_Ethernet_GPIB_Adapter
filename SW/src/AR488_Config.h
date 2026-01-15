@@ -5,9 +5,10 @@
 /***** AR488 GLOBAL CONFIGURATION HEADER *****/
 /***** vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv *****/
 
+#include "config.h"
 
 /***** Firmware version *****/
-#define FWVER "AR488 GPIB controller, ver. 0.53.03, 08/04/2025"
+#define FWVER "AR488 GPIB controller, ver. 0.53.34, 26/12/2025"
 
 
 /***** BOARD CONFIGURATION *****/
@@ -23,62 +24,68 @@
 /*
  * Uncomment to use custom board layout
  */
-#define AR488_CUSTOM
+//#define AR488_CUSTOM
 
 /*
  * Configure the appropriate board/layout section
  * below as required
-*/
-#ifdef AR488_CUSTOM
+ */
+#if defined(AR488_CUSTOM)
+  /* Board layout */
+  /*
+   * Define board layout in the AR488 CUSTOM LAYOUT
+   * section below
+   */
 
-#include "config.h"
-  
-/*** UNO and NANO boards ***/
-#elif __AVR_ATmega328P__
-  /* Board/layout selection */
+#elif defined(__AVR_ATmega328P__)
+  /*** ATmega328P - UNO R3, Nano ***/
   #define AR488_UNO
   //#define AR488_NANO
   //#define AR488_MCP23S17
 
-/*** MEGA 32U4 based boards (Micro, Leonardo) ***/
-#elif __AVR_ATmega32U4__
-  /*** Board/layout selection ***/
+#elif defined(__AVR_ATmega328PB__)
+  /** ATmega 328PB variant - some clone Nano boards **/
+  //#define AR488_UNO
+  #define AR488_NANO
+  //#define AR488_328PB_ALT
+
+#elif defined(__AVR_ATmega32U4__)
+  /** ATmega 32u4 - Micro, Leonardo  **/
   #define AR488_MEGA32U4_MICRO  // Artag's design for Micro board
   //#define AR488_MEGA32U4_LR3  // Leonardo R3 (same pin layout as Uno)
-  
-/*** MEGA 2560 board ***/
-#elif __AVR_ATmega2560__
-  /*** Board/layout selection ***/
+
+#elif defined(__AVR_ATmega2560__)
+  /** ATmega2560 - Mega 2560 **/
   #define AR488_MEGA2560_D
   //#define AR488_MEGA2560_E1
   //#define AR488_MEGA2560_E2
 
-/***** Panduino Mega 644 or Mega 1284 board *****/
 #elif defined(__AVR_ATmega644P__) || defined(__AVR_ATmega1284P__)
-  /* Board/layout selection */
+  /** ATmega 644P, ATmega 1284P, e.g. Panduino **/
   #define AR488_MEGA644P_MCGRAW
 
-/***** Pololu 328PB board *****/
-#elif defined(__AVR_ATmega328PB__)
-  /* Board/layout selection */
-  #define AR488_UNO
+#elif defined(__AVR_ATmega4809__)
+  /** ATmega4809 - Nano Every, UNO WiFi Rev2 **/
+  #define POE_ETHERNET_GPIB_ADAPTOR
 
-/***** ESP32 boards *****/
 #elif defined(ESP32)
-  /* Board/layout selection */
-  #define NON_ARDUINO   // MUST BE DEFINED!
-  #define ESP32_DEVKIT1_WROOM_32
+  /** ESP32 variants **/
+  #define ESP32_DEVKIT1_WROOM
   // David Douard / Johann Wilhelm board layouts
   //#define ESP32_TTGO_T8_161
   //#define ESP32_ESP32DEV
   //#define ESP32_LOLIN32_161   // ESP32_LOLIN32_161_V2 profile has the same pin assigments
   //#define ESP32_S2_161
+  //#define ESP32_Wilhelm_AR488_ESP32S2_R4
+  //#define ESP32_Wilhelm_AR488_ESP32S2_R5
 
-/***** RPI PIco and Pico W *****/
 #elif defined(ARDUINO_ARCH_RP2040)
-  /* Board/layout selection */
+  /** RP2040/RP2350 Boards **/
   #define RAS_PICO_L1
-//  #define RAS_PICO_L2
+  //#define RAS_PICO_L2
+  //#define RAS_PICO_L3
+  //#define RAS_PICO_L4
+  //#define RAS_PICO_L5
 
 //#elif defined(ARDUINO_NANO_RP2040_CONNECT)
 
@@ -86,8 +93,16 @@
 
 //#elif defined(ARDUINO_ARCH_MBED_RP2040)
 
-#endif  // Board/layout selection
+#elif defined(ARDUINO_ARCH_RENESAS)
+  /** UNO/NANO (Renesas) R4 boards **/
+  /* NOTE: Renesas RA4M1 boards work only with SN7516x buffer chips */
+  #define RA4M1_NANO_R4
 
+#elif defined(__IMXRT1062__)
+  /** Teensy 4.1. boards **/
+  #define IMXRT1062_TEENSY41_01
+
+#endif  // Board/layout selection
 
 
 /***** SERIAL PORT CONFIGURATION *****/
@@ -164,19 +179,25 @@
  */
 //#define SN7516X
 #ifdef SN7516X
+/*** Jay Diddy B board ***/
 //  #define SN7516X_TE 6
 //  #define SN7516X_DC 13
 //  #define SN7516X_SC 12
-  // ONLYA board
-  #define SN7516X_TE 13
-  #define SN7516X_DC 5
-#endif
-
-
-/***** Level shifter (e.g. TXS0108E) enable pin *****/
-//#define LEVEL_SHIFTER
-#ifdef LEVEL_SHIFTER
-  #define LVL_SHIFT_EN 22
+/*** ONLYA board ***/
+//  #define SN7516X_TE 13
+//  #define SN7516X_DC 5
+/*** WilheJo board (V4) ***/
+//  #define SN7516X_TE 17
+//  #define SN7516X_DC 45
+/*** Devkit v1 ***/
+//  #define SN7516X_TE 2
+  // DC to REN
+/*** Pico RP2040 ***/
+//  #define SN7516X_TE 22
+  // DC to REN
+/*** Teensy 4.1 ***/
+//  #define SN7516X_TE 2
+//  #define SN7516X_DC 3
 #endif
 
 
@@ -190,24 +211,9 @@
 //#define REMOTE_SIGNAL_PIN 7
 
 
-/***** 8-way address DIP switch *****/
-#define DIP_SWITCH
-#ifdef DIP_SWITCH
-#define DIP_SW_1  A0
-#define DIP_SW_2  A1
-#define DIP_SW_3  A2
-#define DIP_SW_4  A3
-#define DIP_SW_5  A4
-#define DIP_SW_6  A5
-#define DIP_SW_7  A6
-#define DIP_SW_8  A7
-
-#endif
-
 
 /***** Acknowledge interface is ready *****/
 //#define SAY_HELLO
-
 
 
 /***** DEBUG LEVEL OPTIONS *****/
@@ -254,46 +260,25 @@
 
 #ifdef AR488_CUSTOM
 
-#define DIO1_PIN  22  /*PD0 GPIB 1  */
-#define DIO2_PIN  23  /*PD1 GPIB 2  */
-#define DIO3_PIN  24  /*PD2 GPIB 3  */
-#define DIO4_PIN  25  /*PD3 GPIB 4  */
-#define DIO5_PIN  26  /*PD4 GPIB 13 */
-#define DIO6_PIN  27  /*PD5 GPIB 14 */
-#define DIO7_PIN  28  /*PD6 GPIB 15 */
-#define DIO8_PIN  29  /*PD7 GPIB 16 */
+#define DIO1_PIN  A0  /* GPIB 1  */
+#define DIO2_PIN  A1  /* GPIB 2  */
+#define DIO3_PIN  A2  /* GPIB 3  */
+#define DIO4_PIN  A3  /* GPIB 4  */
+#define DIO5_PIN  A4  /* GPIB 13 */
+#define DIO6_PIN  A5  /* GPIB 14 */
+#define DIO7_PIN  4   /* GPIB 15 */
+#define DIO8_PIN  5   /* GPIB 16 */
 
-#define EOI_PIN   14  /*PC0 GPIB 5  */
-#define DAV_PIN   15  /*PC1 GPIB 6  */
-#define NRFD_PIN  16  /*PC2 GPIB 7  */
-#define NDAC_PIN  17  /*PC3 GPIB 8  */
-#define IFC_PIN   18  /*PC4 GPIB 9  */
-#define SRQ_PIN   19  /*PC5 GPIB 10 */
-#define ATN_PIN   20  /*PC6 GPIB 11 */
-#define REN_PIN   21  /*PC7 GPIB 17 */
+#define IFC_PIN   8   /* GPIB 9  */
+#define NDAC_PIN  9   /* GPIB 8  */
+#define NRFD_PIN  10  /* GPIB 7  */
+#define DAV_PIN   11  /* GPIB 6  */
+#define EOI_PIN   12  /* GPIB 5  */
 
+#define SRQ_PIN   2   /* GPIB 10 */
+#define REN_PIN   3   /* GPIB 17 */
+#define ATN_PIN   7   /* GPIB 11 */
 
-/*
-Data bus        DIO1-  1   13 - DIO5 Data bus
-Data bus        DIO2-  2   14 - DIO6 Data bus
-Data bus        DIO3-  3   15 - DIO7 Data bus
-Data bus        DIO4-  4   16 - DIO8 Data bus
-Management bus  EOI -  5   17 - REN (Remote Enable) Management bus
-(End or Identify)                 (Data Valid)
-Handshake bus   DAV -  6   18 - GND  (Ground)
-(Data Valid)
-Handshake bus  NRFD-  7   19 - GND  (Ground)
-(Not Ready for Data)
-Handshake bus  NDAC-  8   20 - GND  (Ground)
-(No Data Accepted)
-Management bus  IFC -  9   21 - GND  (Ground)
-(Interface Clear)
-Management bus  SRQ - 10   22 - GND  (Ground)
-(Service Request)
-Management bus  ATN - 11   23 - GND  (Ground)
-(Attention)
-GND            GND - 12   24 - Logic GND (Ground)
-*/
 #endif
 
 /***** ^^^^^^^^^^^^^^^^^^^ *****/
@@ -321,7 +306,7 @@ GND            GND - 12   24 - Logic GND (Ground)
  * MACRO_0 (the startup macro). RUN_STARTUP must be uncommented to 
  * run the startup macro when the interface boots up
  */
-//#define USE_MACROS    // Enable the macro feature
+#define USE_MACROS    // Enable the macro feature
 //#define RUN_STARTUP   // Run MACRO_0 (the startup macro)
 
 #ifdef USE_MACROS

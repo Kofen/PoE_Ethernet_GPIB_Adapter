@@ -1,6 +1,12 @@
 #pragma once
 
-#define DEVICE_NAME "Ethernet2GPIB Gateway v1.2 (AR488 v0.53.03)\n"
+#ifndef __AVR_ATmega4809__
+#error "The compiler must set __AVR_ATmega4809__ for ATmega4809 based boards!"
+// __AVR_ATmega4809__ will force a define of POE_ETHERNET_GPIB_ADAPTOR, repeat it here for the IDEs that do not set it automatically
+#define POE_ETHERNET_GPIB_ADAPTOR
+#endif
+
+#define DEVICE_NAME "Ethernet2GPIB Gateway v1.3 (AR488 v0.53.34)\n"
 
 #define LED_R 13
 #define LED_G 39

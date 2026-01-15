@@ -374,7 +374,7 @@ bool onceASecond(bool start = false) {
 // It is to be called at the very start, before network initialization.
 void setup_serial_ui_and_led(const __FlashStringHelper* helloStr) {
     setup_led();
-    startDebugPort();
+    startDebugPort(DB_SERIAL_SPEED);
     delay(100); // wait for the serial port to be ready
     debugPort.println(helloStr);
     display_freeram();

@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "AR488_ComPorts.h"
-// #include <DEVNULL.h>
-/***** AR488_ComPorts.cpp, ver. 0.51.18, 26/02/2023 *****/
+
+/***** AR488_ComPorts.cpp, ver. 0.53.12, 26/02/2023 *****/
 
 /***************************************/
 /***** Serial Port implementations *****/
@@ -20,16 +20,16 @@
 
     SoftwareSerial dataPort(SW_SERIAL_RX_PIN, SW_SERIAL_TX_PIN);
 
-    void startDataPort() {
-      dataPort.begin(AR_SERIAL_SPEED);
+    void startDataPort(unsigned long baud) {
+      dataPort.begin(baud);
     }
 
   #else
 
     Stream& dataPort = AR_SERIAL_PORT;
 
-    void startDataPort() {
-      AR_SERIAL_PORT.begin(AR_SERIAL_SPEED);
+    void startDataPort(unsigned long baud) {
+      AR_SERIAL_PORT.begin(baud);
     }
   
   #endif
@@ -39,9 +39,10 @@
   EthernetStream ethernetPort;
   EthernetStream& dataPort = ethernetPort;
 
-void startDataPort() {
+void startDataPort(unsigned long baud) {
     //byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; // Temporary hard coded MAC
     //IPAddress ip(0, 0, 0, 0); // Same
+    // baud parameter is ignored for Ethernet
 
     // debugPort.print(F("Starting TCP server on port "));
     // debugPort.println(PROLOGIX_PORT);
@@ -83,16 +84,16 @@ int maintainDataPort() {
 
     SoftwareSerial debugPort(SW_SERIAL_RX_PIN, SW_SERIAL_TX_PIN);
 
-    void startDebugPort() {
-      debugPort.begin(DB_SERIAL_SPEED);
+    void startDebugPort(unsigned long baud) {
+      debugPort.begin(baud);
     }
   
   #else
 
     Stream& debugPort = DB_SERIAL_PORT;
 
-    void startDebugPort() {
-      DB_SERIAL_PORT.begin(DB_SERIAL_SPEED);
+    void startDebugPort(unsigned long baud) {
+      DB_SERIAL_PORT.begin(baud);
     }
 
   #endif

@@ -171,6 +171,20 @@ See [SW/README.md](SW/README.md) for more information.
 
 This project is licensed under the GPL V3. See the [LICENSE](LICENSE) file for details.
 
+## Release notes
+
+- 2.2:
+  - Fixes and improvements to VXI-11.2 implementation, especially regarding large reads. Will also work for older instruments.
+  - Backend updated to AR488 0.53.34
+- 2.1:
+  - Improvements to VXI-11.2 implementation, especially regarding large reads.
+- 2.0:
+  - Added support for VXI-11.2
+  - Added interactive web interface (only for VXI-11.2)
+  - Backend updated to AR488 0.53.03
+- 1.0:
+  - First public version
+
 ## Acknowledgements
 
 - A huge thanks to the [AR488 project](https://github.com/Twilight-Logic/AR488), run by [Twilight-Logic](https://github.com/Twilight-Logic) and its community contributors. The current software is a fork of AR488. For more information about this, see [here](SW/README.md).

@@ -2837,7 +2837,7 @@ void fndl_h(char *params) {
 
     if (gpibBus.isAsserted(NDAC_PIN)) {
  
-      if (acnt>0) Serial.print(',');
+      if (acnt>0) dataPort.print(',');
       dataPort.print(pri);
       acnt++;
 

@@ -17,16 +17,24 @@
 // define USE_SERIALMENU if you want a basic menu on the serial console for amongst others IP address setting.
 #define USE_SERIALMENU
 
+#ifndef INTERFACE_PROLOGIX
+#define INTERFACE_VXI11
+#endif
+
+#ifdef INTERFACE_PROLOGIX
+#define DISABLE_WEB_SERVER
+#endif
+// and if you define both, well, you'll have to deal with the compiler telling you there is not enough ROM.
+
 // define DISABLE_WEB_SERVER if you do not want to use the web server. 
 // The web server serves a static explanation page and maybe some interactive use (see below).
 #ifndef DISABLE_WEB_SERVER
 #define USE_WEBSERVER
+#else
+#ifdef USE_WEBSERVER
+#undef USE_WEBSERVER
 #endif
-
-#ifndef INTERFACE_PROLOGIX
-#define INTERFACE_VXI11
 #endif
-// and if you define both, well, you'll have to deal with the compiler telling you there is not enough ROM.
 
 
 // for the Prologix server: 

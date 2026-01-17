@@ -121,7 +121,7 @@ There are 3 parts:
   - green slow flashing for idle
   - green/blue faster flashing when clients are connected
 - the **serial console** (via USB): This console shows startup information, ports used, and has a small menu.
-- the **Web Server** (on port 80): it shows some help texts, the number of connected clients, and allows interaction with any of the connected instruments. The latter functionality is however only available with the VXI-11 service, as Prologix does not leave enough ROM space available.
+- the **Web Server** (on port 80): it shows some help texts, the number of connected clients, and allows interaction with any of the connected instruments. The web server is however only available with the VXI-11 service, as Prologix does not leave enough ROM space available.
 
 ### The serial menu
 

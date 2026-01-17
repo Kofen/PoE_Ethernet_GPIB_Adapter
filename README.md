@@ -176,6 +176,7 @@ This project is licensed under the GPL V3. See the [LICENSE](LICENSE) file for d
 - 2.2:
   - Fixes and improvements to VXI-11.2 implementation, especially regarding large reads. Improved compatibility with older instruments.
   - Backend updated to AR488 0.53.34
+  - The web server had to be removed when using the Prologix interface (ROM size limitation). It is still available when using VXI-11.2.
 - 2.1:
   - Improvements to VXI-11.2 implementation, especially regarding large reads.
 - 2.0:

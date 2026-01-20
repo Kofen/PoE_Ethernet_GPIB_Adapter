@@ -1,6 +1,11 @@
 import time
 import argparse
 import pyvisa
+import logging
+from enum import Enum
+
+NUM_WRITES_66332A_PROLOGIX = 6  # max number of writes for 66332A without it crapping out. The limits seems to be related to prologix vs VXI-11, lower limit with prologix
+NUM_WRITES_66332A_VXI11 = 14  # max number of writes for 66332A without it crapping out. The limits seems to be related to prologix vs VXI-11, higher limit with VXI-11
 
 TESTCONFIG = {
     "usb": {
@@ -8,22 +13,36 @@ TESTCONFIG = {
         "p": 1,
         "type": "66332A",
         "readings": 800,
-        "writes": 14
+        "writes": NUM_WRITES_66332A_PROLOGIX
     },
-    "prologix": {
+    "socket": {
         "inst": "TCPIP::192.168.7.206::1234::SOCKET",
         "p": 1,
         "type": "66332A",
         "readings": 800,
-        "writes": 14  # 14 is the limit because otherwise the instrument craps out
+        "writes": NUM_WRITES_66332A_PROLOGIX
     },
+    "prologix": {
+        "inst": "PRLGX-TCPIP::192.168.7.206::INTFC",
+        "p": 1,
+        "type": "66332A",
+        "readings": 800,
+        "writes": NUM_WRITES_66332A_PROLOGIX
+    },    
     "vxi": {
         "inst": "TCPIP::192.168.7.206::gpib,1::INSTR",
         "p": 0,
         "type": "66332A",
         "readings": 800,
-        "writes": 14  # 14 is the limit because otherwise the instrument craps out
+        "writes": NUM_WRITES_66332A_VXI11
     },    
+    "vxi2": {
+        "inst": "TCPIP::192.168.7.206::gpib,18::INSTR",
+        "p": 0,
+        "type": "8590E",
+        "readings": 1,
+        "writes": 0
+    },      
     "direct": {
         "inst": "TCPIP::192.168.7.205::INSTR",
         "p": 0,
@@ -40,24 +59,47 @@ TESTCONFIG = {
     }    
 }
 
-DEFAULT_DEVICE = "default"
+DEFAULT_DEVICE = "vxi2"
 
-PROLOGIX_SLEEP = 0.1  # seconds
+PROLOGIX_SLEEP = 0.5  # seconds
 
 
-def check_err(inst, prologix: bool):
+def getIDString(device_type: str):
+    if device_type == "8590E":
+        return "*ID?"
+    else:
+        return "*IDN?"
+
+
+def getErrorString(device_type: str):
+    if device_type == "8590E":
+        return "CMDERRQ?"
+    else:
+        return "SYST:ERR?"
+
+
+# global vars
+rm = None
+prlgx = None
+inst = None
+
+
+def check_err(inst, device_type: str, use_prologix_commands: bool):
     time.sleep(0.5)
     
     have_err = True
     # have_printed_err = False
+    errstr = getErrorString(device_type)
     while have_err:
-        if prologix:
-            inst.write("SYST:ERR?")
+        if use_prologix_commands:
+            inst.write(errstr)
             time.sleep(PROLOGIX_SLEEP)
-            err = inst.query("++read eoi")
+            inst.write("++read eoi")
+            err = inst.read_raw().decode('ascii')        
         else:
-            err = inst.query("SYST:ERR?")
-        if not (err.startswith("+0,") or err.startswith("0,")):
+            err = inst.query(errstr)
+        err = err.strip()
+        if not (err.startswith("+0,") or err.startswith("0,") or len(err) == 0):
             print(f"Error: \"{err}\"")
             have_err = True
             # have_printed_err = True
@@ -67,84 +109,152 @@ def check_err(inst, prologix: bool):
             have_err = False
 
 
-def init_device(device_address: str, device_bus_address: int, prologix: bool):
+class prologix_type(Enum):
+    NONE = 0
+    SERIAL = 1
+    SOCKET = 1
+    INTFC = 2
     
+
+def get_prologix_type(device_address: str):
+    if "ASRL" in device_address:
+        return prologix_type.SERIAL
+    elif "SOCKET" in device_address:
+        return prologix_type.SOCKET
+    elif "INTFC" in device_address:
+        return prologix_type.INTFC
+    else:
+        return prologix_type.NONE
+    
+
+def init_device(device_address: str, device_bus_address: int, device_type: str, prologix: prologix_type) -> bool:
+    global rm, inst, prlgx
+    use_prologix_commands = False
     print("Device type: ", device_type)
     print("Device address: ", device_address)
-    if prologix:
+    if prologix != prologix_type.NONE:
         print("Device bus address for prologix: ", device_bus_address)
+        if prologix == prologix_type.SERIAL or prologix == prologix_type.SOCKET:
+            use_prologix_commands = True
         
     print("Connecting to device...")    
     rm = pyvisa.ResourceManager()
-    inst = rm.open_resource(device_address)
+
+    if prologix == prologix_type.INTFC:
+        prlgx = rm.open_resource(device_address)
+        time.sleep(1)  # let the interface settle
+        inst = rm.open_resource(f"GPIB::{device_bus_address}::INSTR")
+    else:
+        inst = rm.open_resource(device_address)        
     inst.timeout = 10000  # milli-seconds
-    if prologix:
+    if use_prologix_commands:
         inst.read_termination = "\n"
         inst.write_termination = "\n"
 
     print("Init communication with device and resetting device...")
 
-    if prologix:
+    if use_prologix_commands:
         inst.write("++auto 0")
         inst.write(f"++addr {device_bus_address}")
         inst.write("++mode 1")
         inst.write("++eoi 1")
         inst.write("++eos 3")
 
-    inst.write("*rst")
-    inst.write("*cls")
+    if device_type != "8590E":
+        inst.write("*rst")
+        inst.write("*cls")
+    else:
+        inst.write("*CLS")
     # inst.write("*rcl")
     
-    check_err(inst, prologix)
+    check_err(inst, device_type, use_prologix_commands)
     
     print("Identifying device...")
-    if prologix:
-        inst.write("*IDN?")
-        idn = inst.query("++read eoi")
+    idstr = getIDString(device_type)
+    if use_prologix_commands:
+        inst.write(idstr)
+        inst.write("++read eoi")
+        idn = inst.read_raw().decode('ascii')
     else:
-        idn = inst.query("*IDN?")
+        idn = inst.query(idstr)
+    idn = idn.strip()
     print(f"Device ID: \"{idn}\"")
     
-    check_err(inst, prologix)
+    check_err(inst, device_type, use_prologix_commands)
     
-    return rm, inst
+    return use_prologix_commands
+
+
+def close_device():
+    global rm, inst, prlgx
+    try:
+        if inst is not None:
+            # print("Closing instrument interface...")
+            inst.close()
+            inst = None
+    except:
+        pass
+    try:
+        if prlgx is not None:
+            # print("Closing prologix interface...")
+            prlgx.close()
+            prlgx = None
+    except:
+        pass
+    try:
+        if rm is not None:
+            # print("Closing resource manager...")
+            rm.close()
+            rm = None
+    except:
+        pass
 
 
 def write_device(device_address: str, device_bus_address: int, device_type: str, number_of_writes: int):
-    prologix = False
+    global rm, inst
+    prologix = prologix_type.NONE
     
     if device_bus_address > 0:
-        prologix = True
-        
+        prologix = get_prologix_type(device_address)
+        if prologix == prologix_type.NONE:
+            print("Device bus address provided but device address does not indicate a prologix device. Bailing out.")
+            return
+                
     if number_of_writes < 1:
         return
         
     print("WRITING DEVICE *********************")
     print("Number of writes to do: ", number_of_writes)
     
-    rm, inst = init_device(device_address, device_bus_address, prologix)
+    use_prologix_commands = init_device(device_address, device_bus_address, device_type, prologix)
     
+    if device_type == "8590E":
+        print("Testing of 8590E series is not implemented yet.")
+        return
+        
     print("Doing writes...")
     if device_type == "66332A":
         cmd = "OUTP ON;VOLT 0;"
         m = 20.0 / number_of_writes
         for i in range(number_of_writes):
-            cmd += f"VOLT {(i + 1) * m:.3f};*WAI;"  # adding WAI so I can see the progress on a scope or fast DMM
+            cmd += f"VOLT {(i + 1) * m:.2f};*WAI;"  # adding WAI so I can see the progress on a scope or fast DMM
 
     inst.write(cmd)
     time.sleep(1)
     print("Read Errors if any...")
-    check_err(inst, prologix)
+    check_err(inst, device_type, use_prologix_commands)
     print("Read Output...")
 
     if device_type == "66332A":
         readcmd = "MEAS:VOLT?"
         
-    if prologix:
+    if use_prologix_commands:
         inst.write(readcmd)
         time.sleep(PROLOGIX_SLEEP)
         try:
-            voltage = inst.query("++read eoi")
+            inst.write("++read eoi")
+            voltage = inst.read_raw().decode('ascii')
+            
         except Exception as e:
             print("Error reading data: ", e)
             voltage = ""
@@ -153,27 +263,36 @@ def write_device(device_address: str, device_bus_address: int, device_type: str,
     
     print("Voltage read: ", voltage)    
         
-    check_err(inst, prologix)
+    check_err(inst, device_type, use_prologix_commands)
     # final error status check
-    check_err(inst, prologix)
+    check_err(inst, device_type, use_prologix_commands)
 
-    inst.close()
-    rm.close()
+    print("Closing...")
+    close_device()
 
 
 def read_device(device_address: str, device_bus_address: int, device_type: str, number_of_readings: int):
-    prologix = False
+    global rm, inst
+    prologix = prologix_type.NONE
     
     if device_bus_address > 0:
-        prologix = True
+        prologix = get_prologix_type(device_address)
+        if prologix == prologix_type.NONE:
+            print("Device bus address provided but device address does not indicate a prologix device. Bailing out.")
+            return
         
     if number_of_readings < 1:
         return
-        
+    
     print("READING DEVICE *********************")
     print("Number of readings to do: ", number_of_readings)    
-    rm, inst = init_device(device_address, device_bus_address, prologix)
 
+    use_prologix_commands = init_device(device_address, device_bus_address, device_type, prologix)
+
+    if device_type == "8590E":
+        print("Testing of 8590E series is not implemented yet.")
+        return
+        
     print("Initialising measurements...")
     interval_in_ms = 100
     if device_type == "K2000":
@@ -212,7 +331,7 @@ def read_device(device_address: str, device_bus_address: int, device_type: str, 
         inst.write("TRIG:IMM")
         inst.write("INIT:CONT:SEQ ON")
     
-    check_err(inst, prologix)        
+    check_err(inst, device_type, use_prologix_commands)        
         
     # Wait for the measurement to complete
     print("Sampling", end='')
@@ -221,11 +340,11 @@ def read_device(device_address: str, device_bus_address: int, device_type: str, 
     while (spin):
         time.sleep(0.5)
         print(".", end='', flush=True)
-        if device_type == "K2000" and prologix:        
+        if device_type == "K2000" and use_prologix_commands:        
             inst.write("status:measurement?")
             if ((512 & int(inst.query("++read eoi"))) == 512):
                 spin = False
-        if device_type == "K2000" and not prologix:
+        if device_type == "K2000" and not use_prologix_commands:
             inst.write("status:measurement?")
             if ((512 & int(inst.query("status:measurement?"))) == 512):
                 spin = False
@@ -246,7 +365,7 @@ def read_device(device_address: str, device_bus_address: int, device_type: str, 
         readcmd = "MEAS:ARRAY:VOLT?"  # FETCH seems to be broken
     
     print("\nRetrieving...")
-    if prologix:
+    if use_prologix_commands:
         inst.write(readcmd)
         time.sleep(PROLOGIX_SLEEP)
         try:
@@ -283,11 +402,11 @@ def read_device(device_address: str, device_bus_address: int, device_type: str, 
     print("Readings retrieved: ", len(voltages))
     
     # final error status check
-    check_err(inst, prologix)
+    check_err(inst, device_type, use_prologix_commands)
 
-    inst.close()
-    rm.close()
-
+    print("Closing...")
+    close_device()
+    
 
 if __name__ == '__main__':
     # Default values for testing
@@ -299,7 +418,7 @@ if __name__ == '__main__':
     
     presets = TESTCONFIG.keys()
     presets = [p for p in presets if p != "default"]  # remove default from the list
-    device_types = ["DMM6500", "K2000", "66332A"]
+    device_types = ["DMM6500", "K2000", "66332A", "8590E"]
     
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Test long Reads or Writes via VXI-11, USB prologix or Ethernet prologix.",
@@ -310,6 +429,7 @@ if __name__ == '__main__':
     parser.add_argument("-r", type=int, default=DEFAULT_READINGS, help="Number of readings.")
     parser.add_argument("-w", type=int, default=DEFAULT_WRITES, help="Number of writes.")
     parser.add_argument("-d", choices=presets, default=None, help="Select one of the presets.")
+    parser.add_argument("-v", action="store_true", help="Enable verbose output.")
     parser.epilog = "VXI-11 address example: \"TCPIP::192.168.1.84::gpib,1::INSTR\". USB Prologix address example: \"ASRL9::INSTR\". Ethernet Prologix address example: \"TCPIP::192.168.1.84::1234::SOCKET\". This code is NOT compatible with a RAW socket device, as I re-use the RAW socket address style for prologix."
     args = parser.parse_args()
         
@@ -318,6 +438,16 @@ if __name__ == '__main__':
     device_type = args.t
     number_of_readings = args.r
     number_of_writes = args.w
+    verbose = args.v
+    
+    if verbose:
+        logging.basicConfig(level=logging.DEBUG)
+        logging.getLogger('pyvisa').setLevel(logging.DEBUG)
+        logging.getLogger('pyvisa-py').setLevel(logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+        logging.getLogger('pyvisa').setLevel(logging.INFO)
+        logging.getLogger('pyvisa-py').setLevel(logging.INFO)
     preset = args.d
     if preset is not None:
         device_address = TESTCONFIG[preset]["inst"]

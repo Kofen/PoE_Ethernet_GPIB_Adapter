@@ -36,13 +36,27 @@ TESTCONFIG = {
         "readings": 800,
         "writes": NUM_WRITES_66332A_VXI11
     },    
-    "vxi2": {
+    "sa_vxi": {
         "inst": "TCPIP::192.168.7.206::gpib,18::INSTR",
         "p": 0,
         "type": "8590E",
         "readings": 1,
         "writes": 0
-    },      
+    },
+    "sa_prologix": {
+        "inst": "PRLGX-TCPIP::192.168.7.206::INTFC",
+        "p": 18,
+        "type": "8590E",
+        "readings": 1,
+        "writes": 0
+    },
+    "sa_socket": {
+        "inst": "TCPIP::192.168.7.206::1234::SOCKET",
+        "p": 18,
+        "type": "8590E",
+        "readings": 1,
+        "writes": 0
+    },          
     "direct": {
         "inst": "TCPIP::192.168.7.205::INSTR",
         "p": 0,
@@ -59,7 +73,7 @@ TESTCONFIG = {
     }    
 }
 
-DEFAULT_DEVICE = "vxi2"
+DEFAULT_DEVICE = "sa_prologix"
 
 PROLOGIX_SLEEP = 0.5  # seconds
 
@@ -144,6 +158,7 @@ def init_device(device_address: str, device_bus_address: int, device_type: str, 
         prlgx = rm.open_resource(device_address)
         time.sleep(1)  # let the interface settle
         inst = rm.open_resource(f"GPIB::{device_bus_address}::INSTR")
+        inst.query_delay = PROLOGIX_SLEEP
     else:
         inst = rm.open_resource(device_address)        
     inst.timeout = 10000  # milli-seconds
@@ -284,14 +299,13 @@ def read_device(device_address: str, device_bus_address: int, device_type: str, 
     if number_of_readings < 1:
         return
     
+    if device_type == "8590E":
+        number_of_readings = 1  # only one reading possible, it is already rather big
+    
     print("READING DEVICE *********************")
     print("Number of readings to do: ", number_of_readings)    
 
     use_prologix_commands = init_device(device_address, device_bus_address, device_type, prologix)
-
-    if device_type == "8590E":
-        print("Testing of 8590E series is not implemented yet.")
-        return
         
     print("Initialising measurements...")
     interval_in_ms = 100
@@ -330,6 +344,8 @@ def read_device(device_address: str, device_bus_address: int, device_type: str, 
         # inst.write(f"TRIG:ACQ:COUN:VOLT {number_of_readings}")  # no, not this, as it averages over N samples
         inst.write("TRIG:IMM")
         inst.write("INIT:CONT:SEQ ON")
+    if device_type == "8590E":
+        pass
     
     check_err(inst, device_type, use_prologix_commands)        
         
@@ -355,6 +371,9 @@ def read_device(device_address: str, device_bus_address: int, device_type: str, 
         if device_type == "66332A":
             # TODO
             spin = False
+        if device_type == "8590E":
+            # TODO
+            spin = False
 
     readcmd = ""
     if device_type == "K2000":
@@ -363,18 +382,47 @@ def read_device(device_address: str, device_bus_address: int, device_type: str, 
         readcmd = f"TRAC:DATA? 1, {number_of_readings}"
     if device_type == "66332A":
         readcmd = "MEAS:ARRAY:VOLT?"  # FETCH seems to be broken
+    if device_type == "8590E":
+        readcmd = "USTATE?"
     
     print("\nRetrieving...")
+    readresult = ""
     if use_prologix_commands:
         inst.write(readcmd)
         time.sleep(PROLOGIX_SLEEP)
-        try:
-            voltages = inst.query_ascii_values("++read eoi")
-        except Exception as e:
-            print("Error reading data: ", e)
-            voltages = []
+        inst.write("++read eoi")        
+        if device_type == "8590E":
+            try:
+                readresult = inst.read_binary_values(datatype="B", header_fmt="hp", is_big_endian=True, expect_termination=True)
+            except Exception as e:
+                print("Error reading data: ", e)
+                readresult = b""                
+            # this is the raw way, with less checking, for comparison. 
+            # readresult = b""
+            # while True:
+            #     try:
+            #         chunk = inst.read_raw()
+            #         print(f"Read chunk of size {len(chunk)} bytes")
+            #         if len(chunk) == 0:
+            #             break
+            #         readresult += chunk
+            #         if chunk[-2:] == b'\r\n':
+            #             break                    
+            #     except:
+            #         break
+        else:
+            try:
+                readresult = inst.read_ascii_values()
+            except Exception as e:
+                print("Error reading data: ", e)
+                readresult = []
     else:
-        voltages = inst.query_ascii_values(readcmd)
+        if device_type == "8590E":
+            # if this is a PRLGX-TCPIP device, I cannot send write and then read_raw, as it will not print the ++read command
+            # so: I do this the proper way
+            readresult = inst.query_binary_values(readcmd, datatype="B", header_fmt="hp", is_big_endian=True, expect_termination=True)
+        else:
+            readresult = inst.query_ascii_values(readcmd)
         # inst.write(readcmd)
         # time.sleep(PROLOGIX_SLEEP)
         
@@ -397,9 +445,11 @@ def read_device(device_address: str, device_bus_address: int, device_type: str, 
     if device_type == "DMM6500":
         inst.write("trace:clear")
 
-    # print(voltages)
-    print("Readings requested: ", number_of_readings)
-    print("Readings retrieved: ", len(voltages))
+    if device_type != "8590E":
+        print("Readings requested: ", number_of_readings)
+        print("Readings retrieved: ", len(readresult))
+    else:
+        print(f"Binary data length retrieved: {len(readresult)}")
     
     # final error status check
     check_err(inst, device_type, use_prologix_commands)

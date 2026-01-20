@@ -106,7 +106,23 @@ Know that if you use VXI-11 and pyvisa, you may need to set the `instr.chunk_siz
 
 ### Prologix and pyvisa
 
-Support for prologix in pyvisa has been pending since a long time. Depending on your situation, you can try to bypass it by faking the prologix service as being a raw socket service (ex `TCPIP::192.168.7.206::1234::SOCKET`), and then mix the SCPI commands with the correct `++` commands.
+Support for prologix in pyvisa has been pending since a long time, and are not well documented. There are 2 main possibilities:
+
+- You can fake the prologix service as being a raw socket service (ex `TCPIP::192.168.7.206::1234::SOCKET`), and then mix the SCPI commands with the correct `++` commands. This might be the most robust for now, but requires more work on the user side.
+- or use constructions like this (not well documented yet with pyvisa, and you need a recent version of pyvisa):
+
+```python
+import pyvisa
+rm = pyvisa.ResourceManager()
+prlgx = rm.open_resource("PRLGX-TCPIP::192.168.7.206::INTFC")  # This is the gateway, and pyvisa will pick port 1234 automatically. It will propose itself as a native GPIB interface, so you can't also have a GPIB card in your system
+inst1 = rm.open_resource("GPIB::1::INSTR")  # instrument at address 1
+inst2 = rm.open_resource("GPIB::2::INSTR")  # etc
+inst18 = rm.open_resource("GPIB::18::INSTR")
+# and now you can talk to the instruments (one at a time please):
+print(inst1.query("*IDN?"))
+print(inst2.query("*IDN?"))
+print(inst18.query("*ID?"))
+```
 
 ---
 

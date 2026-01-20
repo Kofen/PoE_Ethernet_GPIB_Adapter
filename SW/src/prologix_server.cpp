@@ -235,7 +235,7 @@ static const char cmdHelpPrologix[] PROGMEM = {
 
 
 static const char cmdHelpExtended[] PROGMEM = {
-  "/nExtended custom commands:\n"
+  "\nExtended custom commands:\n"
   "aspoll:\tSerial poll all instruments (alias: ++spoll all)\n"
   "dcl:\tSend unaddressed (all) device clear  [power on reset] (is the rst?)\n"
   "default:\tSet configuration to controller default settings\n"
@@ -2060,7 +2060,7 @@ void lon_h(char *params) {
 bool printHelp(const char * help, char * keyword){
 //  char c, t;
   char c;
-  char token[20];
+  char token[30];
   uint8_t i;
   bool found = false;
 
@@ -2068,15 +2068,16 @@ bool printHelp(const char * help, char * keyword){
   for (size_t k = 0; k < strlen_P(help); k++) {
     c = pgm_read_byte_near(help + k);
 
-
-    if (i < 20) {
+    if (i < sizeof(token)) {
       if(c == ':') {
         token[i] = 0;
         if((keyword == NULL) || (strcmp(token, keyword) == 0)) {
-          dataPort.print(F("++"));
+          if (i < 20)
+            // skip the ++ for headers
+            dataPort.print(F("++"));
           dataPort.print(token);
-//          dataPort.print(c);
-          k++;
+          dataPort.print(c);
+          // k++;
           /*
           t = pgm_read_byte_near(cmdHelp + k);
           dataPort.print(F(" ["));

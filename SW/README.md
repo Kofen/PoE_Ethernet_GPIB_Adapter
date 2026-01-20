@@ -32,7 +32,7 @@ This is/was the 'main' file. It received most changes:
 
 The file was renamed to 'prologix_server.cpp'. The code sections that were modified, are marked as such, with explanation of what was changed.
 
-Anticipated solving AR488 issue #75 (dataPort vs Serial in fndl_h)
+Anticipated solving AR488 issues #75 and #76 (dataPort vs Serial in fndl_h, and printHelp)
 
 ## AR488_ComPorts.cpp and AR488_ComPorts.h
 

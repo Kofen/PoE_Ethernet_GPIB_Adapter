@@ -1404,30 +1404,29 @@ uint8_t getGpibPinState(uint8_t pin){
 */
 
 
-uint8_t readPortPullupReg(PORT_t port){
+uint8_t readPortPullupReg(PORT_t *port){
   uint8_t reg = 0;
-  reg |= (port.PIN0CTRL & PORT_PULLUPEN_bm) >> 3;
-  reg |= (port.PIN1CTRL & PORT_PULLUPEN_bm) >> 2;
-  reg |= (port.PIN2CTRL & PORT_PULLUPEN_bm) >> 1;
-  reg |= (port.PIN3CTRL & PORT_PULLUPEN_bm);
-  reg |= (port.PIN4CTRL & PORT_PULLUPEN_bm) << 1;
-  reg |= (port.PIN5CTRL & PORT_PULLUPEN_bm) << 2;
-  reg |= (port.PIN6CTRL & PORT_PULLUPEN_bm) << 3;
-  reg |= (port.PIN7CTRL & PORT_PULLUPEN_bm) << 4;
+  reg |= (port->PIN0CTRL & PORT_PULLUPEN_bm) >> 3;
+  reg |= (port->PIN1CTRL & PORT_PULLUPEN_bm) >> 2;
+  reg |= (port->PIN2CTRL & PORT_PULLUPEN_bm) >> 1;
+  reg |= (port->PIN3CTRL & PORT_PULLUPEN_bm);
+  reg |= (port->PIN4CTRL & PORT_PULLUPEN_bm) << 1;
+  reg |= (port->PIN5CTRL & PORT_PULLUPEN_bm) << 2;
+  reg |= (port->PIN6CTRL & PORT_PULLUPEN_bm) << 3;
+  reg |= (port->PIN7CTRL & PORT_PULLUPEN_bm) << 4;
   return reg;
 }
 
 
-void setPortPullupBits(PORT_t port, uint8_t reg){
-  port.PIN0CTRL |= ((reg<<3) & PORT_PULLUPEN_bm);
-  port.PIN1CTRL |= ((reg<<2) & PORT_PULLUPEN_bm);
-  port.PIN2CTRL |= ((reg<<1) & PORT_PULLUPEN_bm);
-  port.PIN3CTRL |= (reg & PORT_PULLUPEN_bm);
-  port.PIN4CTRL |= ((reg>>1) & PORT_PULLUPEN_bm);
-  port.PIN5CTRL |= ((reg>>2) & PORT_PULLUPEN_bm);
-  port.PIN6CTRL |= ((reg>>3) & PORT_PULLUPEN_bm);
-  port.PIN7CTRL |= ((reg>>4) & PORT_PULLUPEN_bm);
-  
+void setPortPullupBits(PORT_t *port, uint8_t reg) {
+  port->PIN0CTRL = ((reg<<3) & PORT_PULLUPEN_bm);
+  port->PIN1CTRL = ((reg<<2) & PORT_PULLUPEN_bm);
+  port->PIN2CTRL = ((reg<<1) & PORT_PULLUPEN_bm);
+  port->PIN3CTRL = (reg & PORT_PULLUPEN_bm);
+  port->PIN4CTRL = ((reg>>1) & PORT_PULLUPEN_bm);
+  port->PIN5CTRL = ((reg>>2) & PORT_PULLUPEN_bm);
+  port->PIN6CTRL = ((reg>>3) & PORT_PULLUPEN_bm);
+  port->PIN7CTRL = ((reg>>4) & PORT_PULLUPEN_bm);
 }
 
 
@@ -1445,7 +1444,7 @@ void readyGpibDbus(uint8_t state = INPUT_PULLUP) {
   // Set data pins to input
   PORTD.DIR &= 0b00000000;
   // Set PORTD bits to input_pullup
-  setPortPullupBits(PORTD, 0b11111111);
+  setPortPullupBits(&PORTD, 0b11111111);
 }
 
 
@@ -1502,10 +1501,10 @@ void setGpibCtrlDir(uint8_t bits, uint8_t mask) {
   PORTC.DIR = ( (PORTC.DIR & ~portCm) | (portCb & portCm) );
 
   // Set inputs to input_pullup, outputs  to output
-  uint8_t reg = (readPortPullupReg(PORTC) & ~portCm);
+  uint8_t reg = (readPortPullupReg(&PORTC) & ~portCm);
   uint8_t toset = (~portCb & portCm);
   reg |= toset;
-  setPortPullupBits(PORTC, reg);
+  setPortPullupBits(&PORTC, reg);    
 }
 
 

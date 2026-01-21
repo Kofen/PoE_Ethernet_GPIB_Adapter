@@ -36,6 +36,13 @@
 #endif
 #endif
 
+//#define DEBUG_GPIBbus_SEND
+//#define DEBUG_GPIBbus_RECEIVE
+//#define DEBUG_GPIBbus_CONTROL
+//#define DEBUG_GPIBbus_DEVICE
+//#define DEBUG_GPIB_COMMANDS
+//#define DEBUG_GPIB_ADDRESSING
+
 
 // for the Prologix server: 
 #define AR_ETHERNET_PORT

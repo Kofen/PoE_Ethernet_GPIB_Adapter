@@ -205,6 +205,17 @@ static const char cmdHelp[] PROGMEM = {
 };
 */
 
+// >>> Modified:
+// disable help text when debugging is enabled
+#if defined(DEBUG_GPIBbus_CONTROL) || defined(DEBUG_GPIBbus_DEVICE) || defined(DEBUG_GPIBbus_SEND) || defined(DEBUG_GPIBbus_RECEIVE) || defined(DEBUG_GPIB_COMMANDS) || defined(DEBUG_GPIB_ADDRESSING)
+static const char cmdHelpPrologix[] PROGMEM = {
+  ""
+};
+
+static const char cmdHelpExtended[] PROGMEM = {
+  ""
+};
+#else
 
 static const char cmdHelpPrologix[] PROGMEM = {
   "\nPrologix Compatible Commands:\n"
@@ -260,7 +271,7 @@ static const char cmdHelpExtended[] PROGMEM = {
   "verbose:\tVerbose (human readable) mode\n"
   "xdiag:\tBus diagnostics (see the doc)\n"
 };
-
+#endif
 
 
 

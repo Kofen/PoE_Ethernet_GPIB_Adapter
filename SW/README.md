@@ -32,7 +32,7 @@ This is/was the 'main' file. It received most changes:
 
 The file was renamed to 'prologix_server.cpp'. The code sections that were modified, are marked as such, with explanation of what was changed.
 
-Anticipated solving AR488 issues #75 and #76 (dataPort vs Serial in fndl_h, and printHelp)
+Anticipated solving AR488 issues #75 and #76 ("dataPort vs Serial in fndl_h", and "printHelp small issues")
 
 ## AR488_ComPorts.cpp and AR488_ComPorts.h
 
@@ -57,4 +57,4 @@ no changes
 
 ## AR488_Layouts.cpp and AR488_Layouts.h
 
-no changes
+no changes, other than anticipation of AR488 issue #77 ("POE_ETHERNET_GPIB_ADAPTOR pullup control is ineffective")

@@ -41,6 +41,7 @@ Anticipated solving AR488 issues #75 and #76 ("dataPort vs Serial in fndl_h", an
 * `startDataPort(unsigned long baud)` version added that points to a `EthernetStream`, surrounded by `#ifdef AR_ETHERNET_PORT/#else/#endif`
 * `int maintainDataPort()` added
 * `printBuf()` added
+* Anticipated solving AR488 issue #78 ("debugPrint does not use debugPort")
 
 ## AR488_Config.h
 

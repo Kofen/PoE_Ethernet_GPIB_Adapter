@@ -55,6 +55,7 @@ no changes
 ## AR488_GPIBbus.cpp and AR488_GPIBbus.h
 
 * Added a couple of sections with `#ifdef AR488_GPIBconf_EXTEND`, in order to store the IP address in the config.
+* Adapted some debug prints behind `DEBUG_GPIBbus_RECEIVE`, marked with `// >>> CHANGED >>>`
 
 ## AR488_Layouts.cpp and AR488_Layouts.h
 

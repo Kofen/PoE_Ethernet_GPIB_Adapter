@@ -662,10 +662,10 @@ enum receiveState GPIBbus::receiveData(Stream &dataStream, bool detectEoi, bool 
     if (hstate == HANDSHAKE_COMPLETE) {
 #ifdef DEBUG_GPIBbus_RECEIVE
       DB_HEX_PRINT(bytes[0]);
-#else
+#endif
+      // >>> CHANGED >>> removed #else and moved the #endif up
       // Output the character to the serial port
       dataStream.print((char)bytes[0]);
-#endif
 
       // Byte counter
       x++;
@@ -731,6 +731,8 @@ enum receiveState GPIBbus::receiveData(Stream &dataStream, bool detectEoi, bool 
     DB_PRINT(F("Timeout waiting for sender!"), "");
     DB_PRINT(F("Timeout waiting for transfer to complete!"), "");
   }
+  // >>> CHANGED >>> added print statement
+  DB_PRINT(F("Receive Data hstatus: "), hstate);
 #endif
 
   // Don't go idle if maxSize is set and receive limit state reached

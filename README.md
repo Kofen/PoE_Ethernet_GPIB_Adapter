@@ -124,6 +124,8 @@ print(inst2.query("*IDN?"))
 print(inst18.query("*ID?"))
 ```
 
+If you use this method, be aware that pyvisa tries to be intelligent, and emits the `++read eoi` itself command when you do a query. But you can no longer emit that yourself. That means that you can no longer call `read_raw` or other standalone read methods. Only use `query...` and `write` methods.
+
 ---
 
 ## The User Interface of the device

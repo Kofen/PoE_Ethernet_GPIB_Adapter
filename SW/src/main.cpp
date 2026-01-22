@@ -180,10 +180,9 @@ class SCPI_handler : public SCPI_handler_interface {
         } else if (stopReason == RECEIVE_ENDCHAR) {
             // End Byte detected
             return SRS_END;
-        } else if (stopReason == RECEIVE_ERR) {
-            // No stop reason detected
-            return SRS_NONE;
-        } else return SRS_ERROR;
+        } else 
+            // timeout or error or something else
+            return SRS_ERROR;
 #endif
     }
 

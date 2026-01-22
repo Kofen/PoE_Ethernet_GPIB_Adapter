@@ -37,7 +37,7 @@ TESTCONFIG = {
         "writes": NUM_WRITES_66332A_VXI11
     },    
     "sa_vxi": {
-        "inst": "TCPIP::192.168.7.206::gpib,18::INSTR",
+        "inst": "TCPIP::192.168.7.206::gpib,3::INSTR",
         "p": 0,
         "type": "8590E",
         "readings": 1,
@@ -45,14 +45,14 @@ TESTCONFIG = {
     },
     "sa_prologix": {
         "inst": "PRLGX-TCPIP::192.168.7.206::INTFC",
-        "p": 18,
+        "p": 3,
         "type": "8590E",
         "readings": 1,
         "writes": 0
     },
     "sa_socket": {
         "inst": "TCPIP::192.168.7.206::1234::SOCKET",
-        "p": 18,
+        "p": 3,
         "type": "8590E",
         "readings": 1,
         "writes": 0

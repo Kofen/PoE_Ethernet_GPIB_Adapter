@@ -50,18 +50,18 @@
 // define DISABLE_WEB_SERVER if you do NOT want to use the web server or if you activated too many debug options above. 
 //#define DISABLE_WEB_SERVER
 
-// Prologix has no space for the web server, so disabling it if you have selected Prologix:
+// Prologix has no ROM space for the web server, so disabling it if you have selected Prologix:
 #ifdef INTERFACE_PROLOGIX
 #define DISABLE_WEB_SERVER
 #endif
 
 // The web server serves a static explanation page and maybe some interactive use (see below).
-#ifndef DISABLE_WEB_SERVER
-#define USE_WEBSERVER
-#else
+#ifdef DISABLE_WEB_SERVER
 #ifdef USE_WEBSERVER
 #undef USE_WEBSERVER
 #endif
+#else
+#define USE_WEBSERVER
 #endif
 
 // define WEB_INTERACTIVE for the interactive web server

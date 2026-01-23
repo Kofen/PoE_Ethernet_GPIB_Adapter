@@ -663,7 +663,7 @@ enum receiveState GPIBbus::receiveData(Stream &dataStream, bool detectEoi, bool 
 #ifdef DEBUG_GPIBbus_RECEIVE
       DB_HEX_PRINT(bytes[0]);
 #endif
-      // >>> CHANGED >>> removed #else and moved the #endif up
+      // >>> CHANGED >>> removed #else and moved the #endif up, awaiting AR488 issue #79
       // Output the character to the serial port
       dataStream.print((char)bytes[0]);
 
@@ -713,6 +713,8 @@ enum receiveState GPIBbus::receiveData(Stream &dataStream, bool detectEoi, bool 
   //  DB_PRINT(F("ATN: "), (isAsserted(ATN ? 1 : 0));
   DB_PRINT(F("TMO: "), cfg.rtmo);
   DB_PRINT(F("Bytes read:  "), x);
+  // >>> CHANGED >>> added print statement, awaiting AR488 issue #79
+  DB_PRINT(F("Receive Data hstatus: "), hstate);  
   DB_PRINT(F("<- End listen."), "");
 #endif
 
@@ -731,8 +733,6 @@ enum receiveState GPIBbus::receiveData(Stream &dataStream, bool detectEoi, bool 
     DB_PRINT(F("Timeout waiting for sender!"), "");
     DB_PRINT(F("Timeout waiting for transfer to complete!"), "");
   }
-  // >>> CHANGED >>> added print statement
-  DB_PRINT(F("Receive Data hstatus: "), hstate);
 #endif
 
   // Don't go idle if maxSize is set and receive limit state reached

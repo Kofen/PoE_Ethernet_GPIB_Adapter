@@ -28,7 +28,7 @@
 // Easy, englobing setting for debugging output on the USB Serial (debugPort)
 
 // define LOG_ALL_DETAILS if you want to see all GPIB debug details on USB Serial (debugPort)
-// It will mess up the serial menu a bit
+// The web server and the serial menu will be disabled.
 //#define LOG_ALL_DETAILS
 
 #ifdef LOG_ALL_DETAILS
@@ -41,8 +41,9 @@
 #define DEBUG_GPIBbus_DEVICE
 #define DEBUG_GPIB_COMMANDS
 #define DEBUG_GPIB_ADDRESSING
-// If you log all details, there is no more space for the web server, so disable it:
+// If you log all details, there is no more space for the web server nor the serial menu, so disable them:
 #define DISABLE_WEB_SERVER
+#undef USE_SERIALMENU
 #endif
 
 // Detailed settings if you do not want to log everything:

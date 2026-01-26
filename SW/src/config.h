@@ -25,6 +25,27 @@
 // If you define both, well, you'll have to deal with the compiler telling you there is not enough ROM.
 
 // Debugging:
+// Easy, englobing setting for debugging output on the USB Serial (debugPort)
+
+// define LOG_ALL_DETAILS if you want to see all GPIB debug details on USB Serial (debugPort)
+// It will mess up the serial menu a bit
+//#define LOG_ALL_DETAILS
+
+#ifdef LOG_ALL_DETAILS
+#ifdef INTERFACE_VXI11
+#define LOG_VXI_DETAILS
+#endif
+#define DEBUG_GPIBbus_SEND
+#define DEBUG_GPIBbus_RECEIVE
+#define DEBUG_GPIBbus_CONTROL
+#define DEBUG_GPIBbus_DEVICE
+#define DEBUG_GPIB_COMMANDS
+#define DEBUG_GPIB_ADDRESSING
+// If you log all details, there is no more space for the web server, so disable it:
+#define DISABLE_WEB_SERVER
+#endif
+
+// Detailed settings if you do not want to log everything:
 
 // define LOG_VXI_DETAILS if you want to see VXI details on USB Serial (debugPort)
 // It will mess up the serial menu a bit

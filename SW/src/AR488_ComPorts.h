@@ -57,6 +57,8 @@
     const char * filename = (strrchr(filestr, '/') ? strrchr(filestr, '/') + 1 : filestr);
 //    funcstr[strrchr(funcstr,'(')] = '\0';
 //    const char * function = strrchr(funcstr,' ') + 1;
+    debugPort.print(millis()); // >>> CHANGED >>> added millis timestamp, plus the : separator 
+    debugPort.print(':');
     debugPort.print(filename);
     debugPort.print(':');
     debugPort.print(line);

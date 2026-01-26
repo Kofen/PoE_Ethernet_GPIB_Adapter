@@ -42,6 +42,7 @@ Anticipated solving AR488 issues #75 and #76 ("dataPort vs Serial in fndl_h", an
 * `int maintainDataPort()` added
 * `printBuf()` added
 * Anticipated solving AR488 issue #78 ("debugPrint does not use debugPort")
+* added timing info inside `debugPrint` (marked with `// >>> CHANGED >>>`)
 
 ## AR488_Config.h
 

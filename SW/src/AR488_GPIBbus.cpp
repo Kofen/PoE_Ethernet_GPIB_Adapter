@@ -3,7 +3,7 @@
 #include "AR488_Config.h"
 #include "AR488_GPIBbus.h"
 
-/***** AR488_GPIB.cpp, ver. 0.53.33, 12/12/2025 *****/
+/***** AR488_GPIB.cpp, ver. 0.53.38, 28/01/2026 *****/
 
 
 /****** Process status values *****/
@@ -77,13 +77,6 @@ void GPIBbus::stop() {
 void GPIBbus::setDefaultCfg() {
   // Set default controller mode values ({'\0'} sets version string array to null)
   cfg = { false, false, 2, 0, 1, 0xFF, 0, 0, 0, 1200, 0, { '\0' }, 0, { '\0' }, 0, 0, 0 };
-#ifdef AR488_GPIBconf_EXTEND
-  // Set default IP address
-  cfg.ip[0] = 0;
-  cfg.ip[1] = 0;
-  cfg.ip[2] = 0;
-  cfg.ip[3] = 0;
-#endif  
 }
 
 
@@ -661,11 +654,16 @@ enum receiveState GPIBbus::receiveData(Stream &dataStream, bool detectEoi, bool 
     // If successfully received character
     if (hstate == HANDSHAKE_COMPLETE) {
 #ifdef DEBUG_GPIBbus_RECEIVE
-      DB_HEX_PRINT(bytes[0]);
-#endif
-      // >>> CHANGED >>> removed #else and moved the #endif up, awaiting AR488 issue #79
+      if (&dataPort == &debugPort) {
+        DB_HEX_ASC_PRINT(bytes[0]);
+      }else{
+        dataStream.print((char)bytes[0]);
+        DB_HEX_PRINT(bytes[0]);
+      }
+#else
       // Output the character to the serial port
       dataStream.print((char)bytes[0]);
+#endif
 
       // Byte counter
       x++;
@@ -713,8 +711,7 @@ enum receiveState GPIBbus::receiveData(Stream &dataStream, bool detectEoi, bool 
   //  DB_PRINT(F("ATN: "), (isAsserted(ATN ? 1 : 0));
   DB_PRINT(F("TMO: "), cfg.rtmo);
   DB_PRINT(F("Bytes read:  "), x);
-  // >>> CHANGED >>> added print statement, awaiting AR488 issue #79
-  DB_PRINT(F("Receive Data hstatus: "), hstate);  
+  DB_PRINT(F("Receive Data hstatus: "), hstate);
   DB_PRINT(F("<- End listen."), "");
 #endif
 

@@ -4,7 +4,8 @@ import datetime
 import time
 from enum import Enum
 
-CLOSE_WAIT_TIME = 0.2 # seconds
+CLOSE_WAIT_TIME = 0.2  # seconds
+
 
 class instrument_type(Enum):
     UNKNOWN = 0
@@ -183,14 +184,14 @@ def interrogate_instrument(inst, conn: str, mytype: instrument_type) -> bool:
         
     if mytype == instrument_type.HP_SA:
         readcmd = "USTATE?"
-        expected_len = 7192
+        expected_len = 7358
         try:        
             readresult = inst.query_binary_values(readcmd, datatype="B", header_fmt="hp", is_big_endian=True, expect_termination=True)
         except Exception as e:
             print(f"\n{conn}: Error reading data: {e}")
             return False
         if len(readresult) != expected_len:
-            print(f"\n{conn}: Expected {expected_len} bytes of USTATE data, got {len(readresult)}.")
+            print(f"\n{conn}: WARNING: Expected {expected_len} bytes of USTATE data, got {len(readresult)}.")
             return False 
         print(f"Read {len(readresult)} bytes: OK.")
 

@@ -8,29 +8,32 @@ This sketch represents a rewrite of that work and implements the full set of Pro
 To build an interface, at least one Arduino board will be required to act as the interface hardware. Arduino boards provide a low cost alternative to other commercial interfaces. Currently the following boards are supported:
 
 <table>
-<tr><td><i>MCU</i></td><td><i>Board</i></td><td><i>Serial Ports</i></td><td><i>Comments and layouts</i></td></tr>
-<tr><td>328p</td><td>Uno R3</td><td>Single UART shared with USB</td><td>Layout as per original project by Emanuelle Girlando. Only two pins (6 & 13) remain spare as the remainder are all used to interface with the GPIB bus.</td></tr>
+<tr><td><i>MCU</i></td><td><i>Board</i></td></td><td><i>Comments and layouts</i></td></tr>
+<tr><td>328p</td><td>Uno R3</td><td>Layout as per original project by Emanuelle Girlando. Only two pins (6 & 13) remain spare as the remainder are all used to interface with the GPIB bus.</td></tr>
 
-<tr><td>328p</td><td>Nano</td><td>USB/Single UART shared with USB</td><td>Identical to Uno.</td></tr>
+<tr><td>328p</td><td>Nano</td><td>Identical to Uno.</td></tr>
 
-<tr><td>328p</td><td>Logic Green LG8FX</td><td>USB/Single UART shared with USB</td><td>Identical to Nano, but might have a different UART IC</td></tr>
+<tr><td>328p</td><td>Logic Green LG8FX</td><td>Identical to Nano, but might have a different UART IC</td></tr>
 
 
-<tr><td>32u4</td><td>Micro</td><td>USB/CDC+1 UART</td><td>Compact layout by Artag, designed for his back-of-IEEE488-plug adapter board. All GPIO pins are used so none remain spare. Some Micro boards may not have a reset button, in which case the reset pin need to be briefly shorted to ground by some other means.</td></tr>
+<tr><td>32u4</td><td>Micro</td><td>Compact layout by Artag, designed for his back-of-IEEE488-plug adapter board. All GPIO pins are used so none remain spare. Some Micro boards may not have a reset button, in which case the reset pin need to be briefly shorted to ground by some other means.</td></tr>
 
-<tr><td>32u4</td><td>Leonardo R3</td><td>USB/CDC+1 UART</td><td>Same layout as the UNO, leaving the same two pins (6 & 13) spare.</td></tr>
+<tr><td>32u4</td><td>Leonardo R3</td>><td>Same layout as the UNO, leaving the same two pins (6 & 13) spare.</td></tr>
 
-<tr><td>644</td><td>MightyCore ATMega644</td><td>USB/Single UART</td><td>Similar in form factor to the Nano but an MCU with more memory and additional GPIO pins over the UNO ir Nano</td></tr>
+<tr><td>644</td><td>MightyCore ATMega644</td><td>Similar in form factor to the Nano but an MCU with more memory and additional GPIO pins over the UNO ir Nano</td></tr>
 
-<tr><td>1284</td><td>MicroCore ATMega1284</td><td>USB/Single UART</td><td>Same form factor and layout as the MightyCore 644</td></tr>
+<tr><td>1284</td><td>MicroCore ATMega1284</td><td>Same form factor and layout as the MightyCore 644</td></tr>
 
-<tr><td>2560</td><td>Mega 2560</td><td>4 x UART, Serial0 shared with USB</td><td>
+<tr><td>2560</td><td>Mega 2560</td><td>
 Costs slightly more but has a design and layout that includes considerably more control pins, additional serial ports and a more powerful ATmega2560 MCU. It therefore provides greater flexibility and potential for further expansion. Currently, 3 layouts are provided for the AtMega2650 using either the lower numbered pins on the sides of the board (<D>efault), the first row of pins of the two row header at the end of the board (E1), or the second row of the same header (E2). This provides some flexibility and allows various displays and other devices to be connected if desired. Please be aware that when using the <D>efault layout, pins 16 and 17 that correspond to TXD2 and RXD2 (Serial2) cannot be used for serial communication as they are used to drive GPIB signals, however serial ports 0, 1 and 3 remain available for use. Layouts E1 and E2 do not have the same restriction.
 </td></tr>
 
-<tr><td>RP2040</td><td>Raspberry Pico</td><td>Two serial ports. DFU mode.</td><td>A compact board with more GPIO pins and features than UNO or Nano and runs at a much higher clock frequency. However, it runs at 3.3V and may require level shifters and buffer ICs. Four layouts L1, L2, L3 and L4 available.</td></tr>
+<tr><td>RP2040</td><td>Raspberry Pico</td><td>A compact board with more GPIO pins and features than UNO or Nano and runs at a much higher clock frequency. However, it runs at 3.3V and may require level shifters and buffer ICs. Four layouts L1, L2, L3 and L4 available.</td></tr>
 
-<tr><td>RA4M1</td><td>Arduino Nano R4</td><td>Two serial ports.</td><td>A small compact board using the new Renesas RA4M1 MCU. This has much more flash memory -256kb - as well as 32kb sram and 8kb EEPROM. The Renesas has weaker pull-up resistors and will not function on the GPIB bus without the addition of SN7516x buffer ICs.</td></tr>
+<tr><td>RA4M1</td><td>Arduino Nano R4</td><td>A small compact board using the new Renesas RA4M1 MCU. This has much more flash memory -256kb - as well as 32kb sram and 8kb EEPROM. The Renesas has weaker pull-up resistors and will not function on the GPIB bus without the addition of SN7516x buffer ICs.</td></tr>
+
+<tr><td>i.MX RT1062</td><td>Teensy 4.1</td><td>A compact board with the i.MX RT1062 microcontroler from NXP. This has quite a bit of flash memory -1024kb and runs at 600MHz. The board includes an SD Card reader and an Ethernet interface and can also accomodate optional PSRAM. The Teensy is a 3.3V device and requires level shifters and/or SN7516x buffers to interface with the GPIB bus.</td></tr>
+
 </table>
 
 Including the SN7516x chipset into the interface design will naturally add to the cost, but has the advantage of providing the full 48mA drive current capacity regardless of the capability of the Arduino board being used, as well as providing proper tri-state output with Hi-Z when the board is powered down. The latter isolates the Arduino micro-controller from the GPIB bus when the interface is powered down, preventing GPIB bus communication problems due to 'parasitic power' from signals present on the GPIB bus, thereby allowing the interface to be safely powered down while not in use. Construction will involve adding a daughter-board between the Arduino GPIO pins and the GPIB bus. This could be constructed using prototyping board or shield, or custom designed using KiCad or other PCB layout design software.

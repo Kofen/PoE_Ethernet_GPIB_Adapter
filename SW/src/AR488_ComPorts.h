@@ -3,10 +3,12 @@
 
 #include <Arduino.h>
 #include "AR488_Config.h"
+// >>> CHANGED FROM AR488 UPSTREAM >>> added EthernetStream include
 #include "EthernetStream.h"
 
-/***** AR488_ComPorts.cpp, ver. 0.53.12, 26/02/2023 *****/
+/***** AR488_ComPorts.cpp, ver. 0.53.38, 28/01/2026*****/
 
+// >>> CHANGED FROM AR488 UPSTREAM >>> removed DEVNULL
 
 /*
  * Serial Port definition
@@ -22,14 +24,16 @@
 
 #ifdef DATAPORT_ENABLE
 
+// >>> CHANGED FROM AR488 UPSTREAM >>> added EthernetStream support
 #ifdef AR_ETHERNET_PORT
   extern EthernetStream& dataPort;
 #else
   extern Stream& dataPort;
 #endif
-
-  void startDataPort(unsigned long baud);
+// >>> CHANGED FROM AR488 UPSTREAM >>> added maintainDataPort()
   int maintainDataPort(); 
+  void startDataPort(unsigned long baud);
+
   #define DATAPORT_START() startDataPort()
   #define DATA_RAW_PRINT(str) dataPort.print(str)
   #define DATA_RAW_PRINTLN(str) dataPort.println(str)
@@ -57,7 +61,7 @@
     const char * filename = (strrchr(filestr, '/') ? strrchr(filestr, '/') + 1 : filestr);
 //    funcstr[strrchr(funcstr,'(')] = '\0';
 //    const char * function = strrchr(funcstr,' ') + 1;
-    debugPort.print(millis()); // >>> CHANGED >>> added millis timestamp, plus the : separator 
+    debugPort.print(millis()); // >>> CHANGED FROM AR488 UPSTREAM >>> added millis timestamp, plus the : separator 
     debugPort.print(':');
     debugPort.print(filename);
     debugPort.print(':');
@@ -69,8 +73,10 @@
     debugPort.println(msg2);
   }
 
+  // >>> CHANGED FROM AR488 UPSTREAM >>> added printBuf()
   void printBuf(const char *data, size_t len);
   void printHex(uint8_t byteval);
+  void printHexAscii(uint8_t byteval);
   void printHexArray(uint8_t barray[], size_t asize);
   void printHexBuf(char * buf, size_t bsize);
 
@@ -79,9 +85,9 @@
   #define DB_RAW_PRINT(msg) debugPort.print(msg)
   #define DB_RAW_PRINTLN(msg) debugPort.println(msg)
   #define DB_HEX_PRINT(byteval) printHex(byteval)
+  #define DB_HEX_ASC_PRINT(byteval) printHexAscii(byteval)
   #define DB_HEXA_PRINT(msg, barray, bsize) debugPort.print(msg);printHexArray(barray, bsize)
   #define DB_HEXB_PRINT(msg, buf, bsize) debugPort.print(msg);printHexBuf(buf, bsize)
-
 
 #else
 

@@ -14,7 +14,7 @@
 #include "AR488_Eeprom.h"
 
 
-/***** FWVER "AR488 GPIB controller, ver. 0.53.34, 26/12/2025" *****/
+/***** FWVER "AR488 GPIB controller, ver. 0.53.38, 28/01/2026" *****/
 
 // >>> Modified:
 //      * driven from another file's setup and loop (renamed to `setup_prologix` and `loop_prologix`)
@@ -22,9 +22,9 @@
 //      * individualise the setup of the gpib bus (see `setup_gpibBusConfig`)
 //      * added loads of forward declarations, to be compatible with platformio and other compilers
 //      * added a small helper function `prologix_nr_connections()`
-//      * removed cmdHelpExtended, as it doesn't fit in the AT4809
+//      * some manipulations around the help texts, as it doesn't fit in the AT4809 in some cases
 //
-// All changed sections are marked with ">>> Modified" comments.
+// All changed sections are marked with ">>> CHANGED FROM AR488 UPSTREAM >>>" comments.
 
 /*
   Arduino IEEE-488 implementation by John Chajecki
@@ -205,7 +205,7 @@ static const char cmdHelp[] PROGMEM = {
 };
 */
 
-// >>> Modified:
+// >>> CHANGED FROM AR488 UPSTREAM >>>
 // disable help text when debugging is enabled
 #if defined(DEBUG_GPIBbus_CONTROL) || defined(DEBUG_GPIBbus_DEVICE) || defined(DEBUG_GPIBbus_SEND) || defined(DEBUG_GPIBbus_RECEIVE) || defined(DEBUG_GPIB_COMMANDS) || defined(DEBUG_GPIB_ADDRESSING)
 static const char cmdHelpPrologix[] PROGMEM = {
@@ -218,58 +218,58 @@ static const char cmdHelpExtended[] PROGMEM = {
 #else
 
 static const char cmdHelpPrologix[] PROGMEM = {
-  "\nPrologix Compatible Commands:\n"
-  "addr:\tDisplay/set device address\n"
-  "auto:\tAutomatically request talk and read response\n"
-  "clr:\tSend Selected Device Clear to current GPIB address\n"
-  "eoi:\tEnable/disable assertion of EOI signal\n"
-  "eor:\tShow or set end of receive character(s)\n"
-  "eos:\tSpecify GPIB termination character\n"
+  "Prologix Compatible Commands >\n"
+  "addr:\t\tDisplay/set device address\n"
+  "auto:\t\tAutomatically request talk and read response\n"
+  "clr:\t\tSend Selected Device Clear to current GPIB address\n"
+  "eoi:\t\tEnable/disable assertion of EOI signal\n"
+  "eor:\t\tShow or set end of receive character(s)\n"
+  "eos:\t\tSpecify GPIB termination character\n"
   "eot_char:\tSet character to append to USB output when EOT enabled\n"
   "eot_enable:\tEnable/Disable appending user specified character to USB output on EOI detection\n"
-  "help:\tThis message\n"
-  "ifc:\tAssert IFC signal for 150 miscoseconds - make AR488 controller in charge\n"
-  "llo:\tLocal lockout - disable front panel operation on instrument\n"
-  "loc:\tEnable front panel operation on instrument\n"
-  "lon:\tPut controller in listen-only mode (listen to all traffic)\n"
-  "mode:\tSet the interface mode (1=controller/0=device)\n"
-  "read:\tRead data from instrument\n"
+  "help:\t\tThis message\n"
+  "ifc:\t\tAssert IFC signal for 150 miscoseconds - make AR488 controller in charge\n"
+  "llo:\t\tLocal lockout - disable front panel operation on instrument\n"
+  "loc:\t\tEnable front panel operation on instrument\n"
+  "lon:\t\tPut controller in listen-only mode (listen to all traffic)\n"
+  "mode:\t\tSet the interface mode (1=controller/0=device)\n"
+  "read:\t\tRead data from instrument; e.g. currently addressed > ++read; read from addr > ++read @22\n"
   "read_tmo_ms:\tRead timeout specified between 1 - 3000 milliseconds\n"
-  "rst:\tReset the controller\n"
+  "rst:\t\tReset the controller\n"
   "savecfg:\tSave configration\n"
-  "spoll:\tSerial poll the addressed host or all instruments\n"
-  "srq:\tReturn status of srq signal (1-srq asserted/0-srq not asserted)\n"
+  "spoll:\t\tSerial poll the addressed host or all instruments\n"
+  "srq:\t\tReturn status of srq signal (1-srq asserted/0-srq not asserted)\n"
   "status:\tSet the status byte to be returned on being polled (bit 6 = RQS, i.e SRQ asserted)\n"
-  "trg:\tSend trigger to selected devices (up to 15 addresses)\n"
-  "ver:\tDisplay firmware version\n"
+  "trg:\t\tSend trigger to selected devices (up to 15 addresses)\n"
+  "ver:\t\tDisplay firmware version\n"
 };
 
 
 static const char cmdHelpExtended[] PROGMEM = {
-  "\nExtended custom commands:\n"
-  "aspoll:\tSerial poll all instruments (alias: ++spoll all)\n"
-  "dcl:\tSend unaddressed (all) device clear  [power on reset] (is the rst?)\n"
+  "Extended custom commands >\n"
+  "aspoll:\tSerial poll all instruments (alias = ++spoll all)\n"
+  "dcl:\t\tSend unaddressed (all) device clear  [power on reset] (is the rst?)\n"
   "default:\tSet configuration to controller default settings\n"
-  "id:\tShow interface ID information - see also: 'id name'; 'id serial'; 'id verstr'\n"
+  "flags:\t\tDisplay handhsaking flags - bits 0 1 & 2 control Ready, ReadOk and SendOK\n"
+  "id:\t\tShow interface ID information - see also > 'id name'; 'id serial'; 'id verstr'\n"
   "id name:\tShow/Set the name of the interface\n"
   "id serial:\tShow/Set the serial number of the interface\n"
   "id verstr:\tShow/Set the version string sent in reply to ++ver e.g. \"GPIB-USB\"). Max 47 chars, excess truncated.\n"
-  "idn:\tEnable/Disable reply to *idn? (disabled by default)\n"
-  "macro:\tRun a macro (if macro support is compiled)\n"
-  "fndl:\tFind listners\n"
-  "ppoll:\tConduct a parallel poll\n"
-  "ren:\tAssert or Unassert the REN signal\n"
+  "idn:\t\tEnable/Disable reply to *idn? (disabled by default)\n"
+  "macro:\t\tRun a macro (if macro support is compiled)\n"
+  "fndl:\t\tFind listners\n"
+  "ppoll:\t\tConduct a parallel poll\n"
+  "ren:\t\tAssert or Unassert the REN signal\n"
   "repeat:\tRepeat a given command and return result\n"
-  "secread:\tRead from a secondary address\n"
-  "secsend:\tSend data or command to a secondary address\n"
+  "send:\t\tSend to GPIB address; e.g. ++send 22,*idn?\n"
   "setvstr:\tDEPRECATED - see id verstr\n"
   "srqauto:\tAutomatically conduct serial poll when SRQ is asserted\n"
-  "tct:\tSignal remote device to take control\n"
-  "ton:\tPut controller in talk-only mode (send data only)\n"
-  "unl:\tUnlisten the GPIB bus\n"
-  "unt:\tUntalk the GPIB bus"
+  "tct:\t\tSignal remote device to take control\n"
+  "ton:\t\tPut controller in talk-only mode (send data only)\n"
+  "unl:\t\tUnlisten the GPIB bus\n"
+  "unt:\t\tUntalk the GPIB bus\n"
   "verbose:\tVerbose (human readable) mode\n"
-  "xdiag:\tBus diagnostics (see the doc)\n"
+  "xdiag:\t\tBus diagnostics (see the doc)\n"
 };
 #endif
 
@@ -351,10 +351,11 @@ bool sendIdn = false;
 /***** COMMON CODE SECTION *****/
 /***** vvvvvvvvvvvvvvvvvvv *****/
 
+// >>> CHANGED FROM AR488 UPSTREAM >>>
+// added Function Prototypes section
 /*******************************/
 /***** Function Prototypes *****/
 /***** vvvvvvvvvvvvvvvvvvv *****/
-// >>> Modified: added this section with forward declarations
 
 void tonMode();
 void lonMode();
@@ -443,8 +444,8 @@ void getCmd(char *buffr);
 /*******************************/
 
 /******  Arduino standard SETUP procedure *****/
-// >>> Modified: 
-//    * name of the function: setup_prologix()
+// >>> CHANGED FROM AR488 UPSTREAM >>>
+//    * rename of the function: setup() -> setup_prologix()
 //    * most of the init code is external now
 //    * moved all of the gpib bus config and setup to setup_gpibBus()
 //    * in setup_gpibBusConfig() re-activated the debug logs
@@ -457,6 +458,19 @@ void getCmd(char *buffr);
  * It also sets up the SN7516x IC if used.
  */
 void setup_gpibBusConfig() {
+
+  // Disable the watchdog (needed to prevent WDT reset loop)
+#ifdef __AVR__
+  wdt_disable();
+#endif
+
+#ifdef DEBUG_ENABLE
+  // Initialise debug port
+//  DB_SERIAL_PORT.begin(DB_SERIAL_SPEED);
+  startDebugPort(DB_SERIAL_SPEED);
+#endif
+
+  // >>> CHANGED FROM AR488 UPSTREAM >>> removed LED, SIGNAL_PIN, BT initialisation
 
   // Using MCP23S17 (SPI) expander chip
 #ifdef AR488_MCP23S17
@@ -544,6 +558,7 @@ void setup_gpibBusConfig() {
 
 }
 
+// >>> CHANGED FROM AR488 UPSTREAM >>> new setup_prologix() function
 /**
  * @brief Set the up prologix server
  * 
@@ -563,7 +578,9 @@ void setup_prologix(void) {
 
 
 /***** ARDUINO MAIN LOOP *****/
-// >>> Modified: name of the function, added maintainDataPort() and added a return value;
+// >>> CHANGED FROM AR488 UPSTREAM >>>: 
+// * renamed loop() -> loop_prologix
+// * added maintainDataPort() and added a return value;
 /**
  * @brief run the main loop for the prologix server
  * 
@@ -699,9 +716,6 @@ if (lnRdy>0){
   if (dataPort.available()) lnRdy = serialIn_h();
 
   delayMicroseconds(5);
-
-  // >> Modified: return the number of active clients
-  return nrclients;
 }
 /***** END MAIN LOOP *****/
 
@@ -2069,46 +2083,68 @@ void lon_h(char *params) {
 
 /***** Print help *****/
 bool printHelp(const char * help, char * keyword){
-//  char c, t;
-  char c;
-  char token[30];
-  uint8_t i;
+  uint8_t tksize = 20;
+  uint8_t hlnsize = 128;
+  char c = '\0';
+  char token[tksize];
+  char helpline[hlnsize];
+  uint8_t tcnt = 0;
+  size_t ccnt = 0;
   bool found = false;
+  size_t helplen = strlen_P(help);
 
-  i = 0;
-  for (size_t k = 0; k < strlen_P(help); k++) {
-    c = pgm_read_byte_near(help + k);
+  memset(token, '\0', tksize);
+  memset(helpline, '\0', hlnsize);
 
-    if (i < sizeof(token)) {
-      if(c == ':') {
-        token[i] = 0;
-        if((keyword == NULL) || (strcmp(token, keyword) == 0)) {
-          if (i < 20)
-            // skip the ++ for headers
-            dataPort.print(F("++"));
-          dataPort.print(token);
-          dataPort.print(c);
-          // k++;
-          /*
-          t = pgm_read_byte_near(cmdHelp + k);
-          dataPort.print(F(" ["));
-          dataPort.print(t);
-          dataPort.print(F("]"));
-          */
-          i = 255; // means we need to print until \n
-        }
-        
-      } else {
-        token[i] = c;
-        i++;
+  while (ccnt < helplen) {
+
+    while ( tcnt < hlnsize ) {
+
+      c = pgm_read_byte_near(help + ccnt);
+      ccnt++;
+
+      if (c == ':') {
+        helpline[tcnt] = '\0';
+        if (tcnt < tksize) strlcpy(token, helpline, tcnt+1);
+        tcnt = 0;
+      }else if (c == '\n') {
+        helpline[tcnt] = '\0';
+        break;
+      }else{
+        helpline[tcnt] = c;
+        tcnt++;
       }
-    } else if (i == 255) {
-      dataPort.print(c);
+
     }
-    if (c == '\n') {
-      i = 0;
+
+    if (token[0]) {
+
+      if (keyword) {
+        if ( (strncasecmp(token, keyword, strlen(keyword)) == 0) ) found = true;
+      }
+
+      if( (keyword == NULL) || found ) {
+        dataPort.print(F("++"));
+        dataPort.print(token);
+        dataPort.println(helpline);
+        memset(token, '\0', tksize);
+      }
+
+      if (found) return true;
+
+    }else{
+
+      if (keyword == NULL) {        // Print headers only of full help
+        dataPort.println(helpline);
+        dataPort.println();
+      }
+
     }
+
+    tcnt = 0;
+
   }
+
   return found;
 }
 
@@ -2121,20 +2157,23 @@ void help_h(char * params) {
   bool found = false;
 
   if (params != NULL) {
-    param = strtok(params, " ,\t");
-    if (strncasecmp(param, "prologix", 8) == 0) {
-      keyword = strtok(NULL, " ,\t");
+    param = strtok(params, " \t\n");
+    if (strncasecmp(param, "pro", 8) == 0) {
+      keyword = strtok(NULL, "\n");
       printHelp(cmdHelpPrologix, keyword);
-    }else if (strncasecmp(param, "extended", 8) == 0) {
-      keyword = strtok(NULL, " ,\t");
+    }else if (strncasecmp(param, "ext", 8) == 0) {
+      keyword = strtok(NULL, "\n");
       printHelp(cmdHelpExtended, keyword);
     }else{
-      printHelp(cmdHelpPrologix, param);
-      if (!found) printHelp(cmdHelpExtended, param);
+      found = printHelp(cmdHelpPrologix, param);
+      if (!found) found = printHelp(cmdHelpExtended, param);
+      if (!found) dataPort.println(F("Not found."));
     }
   }else{
     printHelp(cmdHelpPrologix, NULL);
+    dataPort.println();
     printHelp(cmdHelpExtended, NULL);
+    dataPort.println();
   }  
 }
 
@@ -2833,9 +2872,6 @@ void fndl_h(char *params) {
       continue;
     }
 
-//Serial.print("PRI: ");
-//Serial.println(pri);
-
     // Send UNL + UNT + LAD (addressDevice function adds 0x20 to pri)
     if (gpibBus.addressDevice(pri, 0xFF, TOLISTEN) == ERR) {
       errorMsg(3);
@@ -2963,13 +2999,6 @@ void send_h(char *params) {
     }
 
     if (param[strlen(param)-1] == '?') isQuery = true;
-
-
-/*
-Serial.println(pri);
-Serial.println(sec);
-Serial.println(param);
-*/
 
 //    gpibBus.unAddressDevice();
     gpibBus.addressDevice(pri, sec, TOLISTEN);

@@ -8,12 +8,14 @@
 
 
 
-/***** AR488_GPIBbus.cpp, ver. 0.53.33, 12/12/2025 *****/
+/***** AR488_GPIBbus.cpp, ver. 0.53.38, 28/01/2026 *****/
 
 
 /*********************************************/
 /***** GPIB COMMAND & STATUS DEFINITIONS *****/
 /***** vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv *****/
+
+// >>> CHANGED FROM AR488 UPSTREAM >>> added AR488_GPIBconf_EXTEND section
 #ifdef AR488_GPIBconf_EXTEND
 #define GPIB_CFG_SIZE 87
 #else
@@ -158,6 +160,7 @@ public:
       uint32_t serial;  // Serial number
       uint8_t idn;      // Send ID in response to *idn? 0=disable, 1=send name; 2=send name+serial
       uint8_t hflags;   // Handshaking indicator flags
+// >>> CHANGED FROM AR488 UPSTREAM >>> added AR488_GPIBconf_EXTEND section
 #ifdef AR488_GPIBconf_EXTEND      
       uint8_t ip[4];    // IP address
 #endif

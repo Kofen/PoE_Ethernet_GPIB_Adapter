@@ -1,7 +1,9 @@
 #include <Arduino.h>
 #include "AR488_ComPorts.h"
 
-/***** AR488_ComPorts.cpp, ver. 0.53.12, 26/02/2023 *****/
+/***** AR488_ComPorts.cpp, ver. 0.53.38, 28/01/2026 *****/
+
+// >>> CHANGED FROM AR488 UPSTREAM >>> removed DEVNULL
 
 /***************************************/
 /***** Serial Port implementations *****/
@@ -14,6 +16,7 @@
 
 #ifdef DATAPORT_ENABLE
 
+// >>> CHANGED FROM AR488 UPSTREAM >>> added #ifndef AR_ETHERNET_PORT
 #ifndef AR_ETHERNET_PORT
 
   #ifdef AR_SERIAL_SWPORT
@@ -34,6 +37,7 @@
   
   #endif
 
+// >>> CHANGED FROM AR488 UPSTREAM >>> added maintainDataPort(), ethernetPort and startDataPort
   int maintainDataPort() { return 0; }
 #else
   EthernetStream ethernetPort;
@@ -65,7 +69,7 @@ void startDataPort(unsigned long baud) {
 int maintainDataPort() {
   return ethernetPort.maintain();
 }
-#endif
+#endif  // >>> CHANGED FROM AR488 UPSTREAM >>> endif AR_ETHERNET_PORT
 #else
 
   DEVNULL _dndata;
@@ -98,6 +102,7 @@ int maintainDataPort() {
 
   #endif
 
+  // >>> CHANGED FROM AR488 UPSTREAM >>> added printBuf()
   void printBuf(const char *data, size_t len) {
     debugPort.print("\"");
     for (size_t i = 0; i < len; i++) {
@@ -127,6 +132,12 @@ int maintainDataPort() {
   void printHex(uint8_t byteval) {
     char x[4] = {'\0'};
     sprintf(x,"%02X ", byteval);
+    debugPort.print(x);
+  }
+
+  void printHexAscii(uint8_t byteval) {
+    char x[6] = {'\0'};
+    sprintf(x,"%c [%02X]\n", byteval, byteval);
     debugPort.print(x);
   }
 

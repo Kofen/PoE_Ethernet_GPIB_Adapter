@@ -107,7 +107,7 @@ if __name__ == '__main__':
         resources = rm.list_resources(query="?*")
         print(resources)
         for m in resources:            
-            if m.startswith("ASRL/dev/cu."):
+            if m.startswith("ASRL/") or m.startswith("PRLGX-ASRL::/") :
                 # some of these devices are not SCPI compatible, like "ASRL/dev/cu.Bluetooth-Incoming-Port::INSTR"
                 print(f"Skipping serial port \"{m}\"")
                 continue

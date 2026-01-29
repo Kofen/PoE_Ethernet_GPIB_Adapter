@@ -5,10 +5,11 @@
 /***** AR488 GLOBAL CONFIGURATION HEADER *****/
 /***** vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv *****/
 
+// >>> CHANGED FROM AR488 UPSTREAM >>> added config.h
 #include "config.h"
 
 /***** Firmware version *****/
-#define FWVER "AR488 GPIB controller, ver. 0.53.34, 26/12/2025"
+#define FWVER "AR488 GPIB controller, ver. 0.53.38, 28/01/2026"
 
 
 /***** BOARD CONFIGURATION *****/

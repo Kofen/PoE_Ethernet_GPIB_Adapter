@@ -152,13 +152,13 @@ It has the following options:
 
 ### The Web server
 
-An example of the web page when using VXI-11:
+The web server is available only when using the VXI-11 interface.
+
+An example of the web page is shown below:
 
 <kbd>
 <img src="./Img/web_server.png">
 </kbd>
-
-Note that the interactive part is not available when using Prologix.
 
 Explanation of the buttons:
 
@@ -169,7 +169,7 @@ Explanation of the buttons:
 * <kbd>Read</kbd>: Read from the selected instrument.
 * <kbd>Clear history</kbd>: clear the contents of history.
 
-Do not interact with the instruments via the web interface while you also interact with the instruments from the VXI or Prologix interface.
+Do not interact with the instruments via the web interface while you also interact with the instruments from the VXI interface.
 
 ---
 

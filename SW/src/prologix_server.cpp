@@ -14,7 +14,7 @@
 #include "AR488_Eeprom.h"
 
 
-/***** FWVER "AR488 GPIB controller, ver. 0.53.38, 28/01/2026" *****/
+/***** FWVER "AR488 GPIB controller, ver. 0.53.39, 29/01/2026" *****/
 
 // >>> Modified:
 //      * driven from another file's setup and loop (renamed to `setup_prologix` and `loop_prologix`)

@@ -6,7 +6,7 @@
 #define POE_ETHERNET_GPIB_ADAPTOR
 #endif
 
-#define DEVICE_NAME "Ethernet2GPIB Gateway v2.2 (AR488 v0.53.38)\n"
+#define DEVICE_NAME "Ethernet2GPIB Gateway v2.2 (AR488 v0.53.39)\n"
 
 #define LED_R 13
 #define LED_G 39

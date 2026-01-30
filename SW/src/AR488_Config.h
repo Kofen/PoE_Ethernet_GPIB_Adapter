@@ -9,7 +9,7 @@
 #include "config.h"
 
 /***** Firmware version *****/
-#define FWVER "AR488 GPIB controller, ver. 0.53.38, 28/01/2026"
+#define FWVER "AR488 GPIB controller, ver. 0.53.39, 29/01/2026"
 
 
 /***** BOARD CONFIGURATION *****/

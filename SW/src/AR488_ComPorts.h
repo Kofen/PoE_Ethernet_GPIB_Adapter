@@ -6,7 +6,7 @@
 // >>> CHANGED FROM AR488 UPSTREAM >>> added EthernetStream include
 #include "EthernetStream.h"
 
-/***** AR488_ComPorts.cpp, ver. 0.53.38, 28/01/2026*****/
+/***** AR488_ComPorts.cpp, ver. 0.53.39, 29/01/2026*****/
 
 // >>> CHANGED FROM AR488 UPSTREAM >>> removed DEVNULL
 

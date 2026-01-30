@@ -15,7 +15,9 @@ If you use `avrdudess`, the GUI version of avrdude, note that for ELF firmware f
 
 # AR488, what has changed and how to integrate a new version of AR488
 
-The GPIB part of this program is "forked" from https://github.com/Twilight-Logic/AR488, from ver. 0.53.38, 29/01/2026. It was enhanced with ethernet support, VXI-11.2 and a couple of User Interface options.
+The GPIB part of this program is "forked" from https://github.com/Twilight-Logic/AR488, from ver. 0.53.39, 29/01/2026. 
+
+It was enhanced with ethernet support, VXI-11.2 and a couple of User Interface options.
 
 Since a proper fork was not possible seen the amount of changes and the specifics of the hardware, this file documents how the integration of the AR488 code was performed. Hoping it will help future code updates.
 
@@ -58,4 +60,4 @@ no changes
 
 ## AR488_Layouts.cpp and AR488_Layouts.h
 
-no changes, other than anticipation of AR488 issue #77 ("POE_ETHERNET_GPIB_ADAPTOR pullup control is ineffective")
+no changes

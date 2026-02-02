@@ -126,7 +126,7 @@ int maintainDataPort() {
     }
     debugPort.print("\" (length: ");
     debugPort.print(len);
-    debugPort.print(")\n");
+    debugPort.print(")");
   }
 
   void printHex(uint8_t byteval) {

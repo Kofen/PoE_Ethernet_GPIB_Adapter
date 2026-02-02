@@ -314,7 +314,7 @@ struct read_request_packet {
     big_endian_32_t io_timeout;      ///< How long to wait before timing out the data request (we will ignore)
     big_endian_32_t lock_timeout;    ///< How long to wait before timing out a lock request (we will ignore)
     big_endian_32_t flags;           ///< Used to indicate whether an "end" character is supplied (we will ignore)
-    char term_char;                  ///< The "end" character (we will ignore)
+    char term_char[4];               ///< The "end" character (we will ignore)
 };
 
 static_assert(sizeof(read_request_packet) < VXI_READ_SIZE - 4, "read_request_packet is too big");
@@ -397,6 +397,95 @@ struct write_response_packet {
 
 static_assert(sizeof(write_response_packet) < VXI_SEND_SIZE - 4, "write_response_packet is too big");
 
+/*!
+  @brief  Structure of the VXI_11_DEV_READSTB request packet.
+
+  In addition to the basic RPC request data, the DEV_READSTB request
+  includes the link id, timeouts for lock and i/o, flags (can signal the use
+  of a terminating character).
+*/
+struct readstb_request_packet {
+    big_endian_32_t xid;             ///< Transaction id (should be checked to make sure it matches, but we will just pass it back)
+    big_endian_32_t msg_type;        ///< Message type (see rpc::msg_type)
+    big_endian_32_t rpc_version;     ///< RPC protocol version (should be 2, but we can ignore)
+    big_endian_32_t program;         ///< Program code (see rpc::programs)
+    big_endian_32_t program_version; ///< Program version - what version of the program is requested (we can ignore)
+    big_endian_32_t procedure;       ///< Procedure code (see rpc::procedures)
+    big_endian_32_t credentials_l;   ///< Security data (not used in this context)
+    big_endian_32_t credentials_h;   ///< Security data (not used in this context)
+    big_endian_32_t verifier_l;      ///< Security data (not used in this context)
+    big_endian_32_t verifier_h;      ///< Security data (not used in this context)
+    big_endian_32_t link_id;         ///< Unique link id generated for this session (see CREATE_LINK)
+    big_endian_32_t flags;           ///< Used to indicate whether an "end" character is supplied (we will ignore)
+    big_endian_32_t io_timeout;      ///< How long to wait before timing out the data request (we will ignore)
+    big_endian_32_t lock_timeout;    ///< How long to wait before timing out a lock request (we will ignore)
+};
+
+static_assert(sizeof(readstb_request_packet) < VXI_READ_SIZE - 4, "readstb_request_packet is too big");
+
+/*!
+  @brief  Structure of the VXI_11_DEV_READSTB response packet.
+
+  In addition to the basic RPC response data, the DEV_READSTB response
+  includes an error field, and the status byte.
+*/
+struct readstb_response_packet {
+    big_endian_32_t xid;         ///< Transaction id (we just pass it back what we received in the request)
+    big_endian_32_t msg_type;    ///< Message type (see rpc::msg_type)
+    big_endian_32_t reply_state; ///< Accepted or rejected (see rpc::reply_state)
+    big_endian_32_t verifier_l;  ///< Security data (not used in this context)
+    big_endian_32_t verifier_h;  ///< Security data (not used in this context)
+    big_endian_32_t rpc_status;  ///< Status of accepted message (see rpc::rpc_status)
+    big_endian_32_t error;       ///< Error code (see rpc::errors)
+    big_endian_32_t status;      ///< the status byte (only the lowest byte is used)
+};
+
+static_assert(sizeof(readstb_response_packet) < VXI_SEND_SIZE - 4, "readstb_response_packet is too big");
+
+/*!
+  @brief  Structure of the VXI_11_DEV_CLEAR request packet.
+
+  In addition to the basic RPC request data, the DEV_CLEAR request
+  includes the link id, timeouts for lock and i/o, flags (can signal the use
+  of a terminating character).
+*/
+struct clear_request_packet {
+    big_endian_32_t xid;             ///< Transaction id (should be checked to make sure it matches, but we will just pass it back)
+    big_endian_32_t msg_type;        ///< Message type (see rpc::msg_type)
+    big_endian_32_t rpc_version;     ///< RPC protocol version (should be 2, but we can ignore)
+    big_endian_32_t program;         ///< Program code (see rpc::programs)
+    big_endian_32_t program_version; ///< Program version - what version of the program is requested (we can ignore)
+    big_endian_32_t procedure;       ///< Procedure code (see rpc::procedures)
+    big_endian_32_t credentials_l;   ///< Security data (not used in this context)
+    big_endian_32_t credentials_h;   ///< Security data (not used in this context)
+    big_endian_32_t verifier_l;      ///< Security data (not used in this context)
+    big_endian_32_t verifier_h;      ///< Security data (not used in this context)
+    big_endian_32_t link_id;         ///< Unique link id generated for this session (see CREATE_LINK)
+    big_endian_32_t flags;           ///< Used to indicate whether an "end" character is supplied (we will ignore)
+    big_endian_32_t io_timeout;      ///< How long to wait before timing out the data request (we will ignore)
+    big_endian_32_t lock_timeout;    ///< How long to wait before timing out a lock request (we will ignore)
+};
+
+static_assert(sizeof(clear_request_packet) < VXI_READ_SIZE - 4, "clear_request_packet is too big");
+
+/*!
+  @brief  Structure of the VXI_11_DEV_CLEAR response packet.
+
+  In addition to the basic RPC response data, the DEV_CLEAR response
+  includes an error field.
+*/
+struct clear_response_packet {
+    big_endian_32_t xid;         ///< Transaction id (we just pass it back what we received in the request)
+    big_endian_32_t msg_type;    ///< Message type (see rpc::msg_type)
+    big_endian_32_t reply_state; ///< Accepted or rejected (see rpc::reply_state)
+    big_endian_32_t verifier_l;  ///< Security data (not used in this context)
+    big_endian_32_t verifier_h;  ///< Security data (not used in this context)
+    big_endian_32_t rpc_status;  ///< Status of accepted message (see rpc::rpc_status)
+    big_endian_32_t error;       ///< Error code (see rpc::errors)
+};
+
+static_assert(sizeof(clear_response_packet) < VXI_SEND_SIZE - 4, "clear_response_packet is too big");
+
 /*  constant variables used to access the data buffers as the various structures defined above  */
 
 rpc_request_packet *const udp_request = (rpc_request_packet *)udp_request_packet_buffer;     ///< udp_request accesses the udp_request_packet_buffer as a generic rpc request
@@ -431,3 +520,9 @@ read_response_packet *const read_response = (read_response_packet *)vxi_response
 
 write_request_packet *const write_request = (write_request_packet *)vxi_request_packet_buffer;     ///< write_request accesses the vxi_request_packet_buffer as a write request
 write_response_packet *const write_response = (write_response_packet *)vxi_response_packet_buffer; ///< write_response accesses the vxi_response_packet_buffer as a write response
+
+readstb_request_packet *const readstb_request = (readstb_request_packet *)vxi_request_packet_buffer;     ///< readstb_request accesses the vxi_request_packet_buffer as a readstb request
+readstb_response_packet *const readstb_response = (readstb_response_packet *)vxi_response_packet_buffer; ///< readstb_response accesses the vxi_response_packet_buffer as a readstb response
+
+clear_request_packet *const clear_request = (clear_request_packet *)vxi_request_packet_buffer;     ///< clear_request accesses the vxi_request_packet_buffer as a clear request
+clear_response_packet *const clear_response = (clear_response_packet *)vxi_response_packet_buffer; ///< clear_response accesses the vxi_response_packet_buffer as a clear response

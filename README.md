@@ -73,13 +73,22 @@ With the limited resources, this device is meant to work with the most common to
 - instrument locking via VXI-11
 - VXI-11 interrupts
 - the VXI-11 abort channel
-- for now: complete end of reply handling. This will be corrected. It now only supports reading on eoi, and therefor misses correct handling of
-  - terminating character supplied in the read request packet
-  - maximum size requested in the read request packet
+- authentication via VXI-11
+- control of timeouts. The gateway uses preset timeouts.
+- terminating character control. It now only supports reading on eoi, and will ignore any requested terminating character.
 
 It is discoverable via UDP, but there is no publication via mDNS (yet).
 
 Not all of the above will be possible with the limited resources the device has, but let us know if you encounter any problems, and we'll look if it is possible to make the implementation more complete.
+
+Some remarks on specific commands:
+
+- Read Status Byte (pyvisa: `inst.read_stb()`):
+  - only if you address the controller itself, it will return a valid status byte. The operation is not supported on the connected instruments.The prologix interface has the same limitation.
+- Device Clear (pyvisa: `inst.clear()`):
+  - if sent to the controller, it is NOT interpreted as a universal device clear (all devices on the bus), but a clear of the controller: all connected devices will be returned to local control and the bus will go idle.
+  - if sent to an instrument, only that instrument will be cleared. Depending on the instrument, it may reset or not, and may take a significant amount of time.
+- While it is in theory possible to support "Go to local/remote" commands, neither pyvisa nor LabView support it properly on VXI-11 devices, so it is not implemented. See Device Clear above.
 
 ### The number of instruments you can connect
 
@@ -191,6 +200,10 @@ This project is licensed under the GPL V3. See the [LICENSE](LICENSE) file for d
 
 ## Release notes
 
+- 2.3:
+  - Improved VXI-11 completeness:
+    - Device Clear
+    - Read Status Byte (only for the controller itself)
 - 2.2:
   - Fixes and improvements to VXI-11.2 implementation, especially regarding large reads. Improved compatibility with older instruments.
   - Solved communication issues with certain instruments that have weak or absent pullups on the GPIB bus.

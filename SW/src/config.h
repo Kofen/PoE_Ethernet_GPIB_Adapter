@@ -6,7 +6,7 @@
 #define POE_ETHERNET_GPIB_ADAPTOR
 #endif
 
-#define DEVICE_NAME "Ethernet2GPIB Gateway v2.2 (AR488 v0.53.39)\n"
+#define DEVICE_NAME "Ethernet2GPIB Gateway v2.3beta (AR488 v0.53.39)\n"
 
 #define LED_R 13
 #define LED_G 39
@@ -29,7 +29,7 @@
 
 // define LOG_ALL_DETAILS if you want to see all GPIB debug details on USB Serial (debugPort)
 // The web server and the serial menu will be disabled.
-// #define LOG_ALL_DETAILS
+#define LOG_ALL_DETAILS
 
 #ifdef LOG_ALL_DETAILS
 #ifdef INTERFACE_VXI11

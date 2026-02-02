@@ -29,7 +29,7 @@
 
 // define LOG_ALL_DETAILS if you want to see all GPIB debug details on USB Serial (debugPort)
 // The web server and the serial menu will be disabled.
-#define LOG_ALL_DETAILS
+// #define LOG_ALL_DETAILS
 
 #ifdef LOG_ALL_DETAILS
 #ifdef INTERFACE_VXI11

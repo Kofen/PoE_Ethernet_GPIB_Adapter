@@ -197,32 +197,32 @@ bool VXI_Server::handle_packet(EthernetClient &client, int slot, bool overflow =
 #endif
     } else {
         switch (vxi_request->procedure) {
-        case rpc::VXI_11_CREATE_LINK:
-            create_link(client, slot);
-            break;
-        case rpc::VXI_11_DEV_READ:
-            read(client, slot);
-            break;
-        case rpc::VXI_11_DEV_WRITE:
-            write(client, slot);
-            break;
-        case rpc::VXI_11_DESTROY_LINK:
-            destroy_link(client, slot);
-            bClose = true;
-            break;
-        case rpc::VXI_11_DEV_READSTB:
-            if (!readstb(client, slot)) {
+            case rpc::VXI_11_CREATE_LINK:
+                create_link(client, slot);
+                break;
+            case rpc::VXI_11_DEV_READ:
+                read(client, slot);
+                break;
+            case rpc::VXI_11_DEV_WRITE:
+                write(client, slot);
+                break;
+            case rpc::VXI_11_DESTROY_LINK:
+                destroy_link(client, slot);
+                bClose = true;
+                break;
+            case rpc::VXI_11_DEV_READSTB:
+                if (!readstb(client, slot)) {
+                    rc = rpc::PROC_UNAVAIL;
+                }
+                break;
+            case rpc::VXI_11_DEV_CLEAR:
+                if (!devclear(client, slot)) {
+                    rc = rpc::PROC_UNAVAIL;
+                }
+                break;
+            default:
                 rc = rpc::PROC_UNAVAIL;
-            }
-            break;
-        case rpc::VXI_11_DEV_CLEAR:
-            if (!devclear(client, slot)) {
-                rc = rpc::PROC_UNAVAIL;
-            }
-            break;
-        default:
-            rc = rpc::PROC_UNAVAIL;
-            break;
+                break;
         }
     }
 
@@ -234,7 +234,7 @@ bool VXI_Server::handle_packet(EthernetClient &client, int slot, bool overflow =
     if (rc != rpc::SUCCESS) {
         // no need to do memset, rpc_response_packet will be filled for the rest by the send_vxi_packet function 
 #ifdef LOG_VXI_DETAILS
-        if (rc == rpc::PROG_UNAVAIL) {
+        if (rc == rpc::PROC_UNAVAIL) {
             debugPort.print(F("Invalid VXI-11 procedure (received "));
             debugPort.printf("%u)\n", (uint32_t)(vxi_request->procedure));
         } else {
@@ -393,7 +393,7 @@ void VXI_Server::read(EthernetClient &client, int slot)
     memset(read_response, 0, sizeof(read_response_packet));
     // If I surpass my max size, I just cut off and the client will have to issue another read 
     vxiBufStream vxiStream(read_response->data, max_len);  ///< using the static buffer's data area
-    SCPI_handler_read_stop_reasons rv = scpi_handler.read(addresses[slot], vxiStream, max_len);
+    SCPI_handler_read_stop_reasons rv = scpi_handler.read(addresses[slot], vxiStream, max_len, read_request->io_timeout);
     // FIXME handle error codes, maybe even pick up errors from the SCPI Parser
 
     read_response->rpc_status = rpc::SUCCESS;
@@ -484,7 +484,7 @@ void VXI_Server::write(EthernetClient &client, int slot)
     debugPort.println();
 #endif
     /*  Parse and respond to the SCPI command  */
-    SCPI_handler_read_stop_reasons rv = scpi_handler.write(addresses[slot], write_request->data, wlen, is_eoi);
+    SCPI_handler_read_stop_reasons rv = scpi_handler.write(addresses[slot], write_request->data, wlen, is_eoi, write_request->io_timeout);
 
     /*  Generate the response  */
     memset(write_response, 0, sizeof(write_response_packet));
@@ -545,7 +545,7 @@ bool VXI_Server::readstb(EthernetClient &client, int slot)
 
     readstb_response->rpc_status = rpc::SUCCESS;
     readstb_response->error = rpc::NO_ERROR;
-    readstb_response->status = scpi_handler.read_stb(addresses[slot]);
+    readstb_response->status = scpi_handler.read_stb(addresses[slot], readstb_request->io_timeout);
     if (readstb_response->status == 0xFF) {
         // invalid status byte, probably not implemented
         return false;
@@ -599,7 +599,7 @@ bool VXI_Server::devclear(EthernetClient &client, int slot)
 #endif
 
     clear_response->rpc_status = rpc::SUCCESS;
-    clear_response->error = scpi_handler.devclear(addresses[slot]);
+    clear_response->error = scpi_handler.devclear(addresses[slot], clear_request->io_timeout);
 
 #ifdef LOG_VXI_DETAILS
     debugPort.print(F("CLEAR Reply slot="));

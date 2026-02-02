@@ -74,7 +74,6 @@ With the limited resources, this device is meant to work with the most common to
 - VXI-11 interrupts
 - the VXI-11 abort channel
 - authentication via VXI-11
-- control of timeouts. The gateway uses preset timeouts.
 - terminating character control. It now only supports reading on eoi, and will ignore any requested terminating character.
 
 It is discoverable via UDP, but there is no publication via mDNS (yet).
@@ -202,10 +201,11 @@ This project is licensed under the GPL V3. See the [LICENSE](LICENSE) file for d
 
 ## Release notes
 
-- 2.3:
+- 2.32beta:
   - Improved VXI-11 completeness:
-    - Device Clear
-    - Read Status Byte (only for the controller itself)
+    - Device Clear command support
+    - Read Status Byte support (only for the controller itself)
+    - timeout control
 - 2.2:
   - Fixes and improvements to VXI-11.2 implementation, especially regarding large reads. Improved compatibility with older instruments.
   - Solved communication issues with certain instruments that have weak or absent pullups on the GPIB bus.

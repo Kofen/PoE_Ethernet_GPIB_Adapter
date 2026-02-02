@@ -110,9 +110,12 @@ enum procedures {
     VXI_11_CREATE_LINK = 10, ///< Create a link to handle a series of requests
     VXI_11_DEV_WRITE = 11,   ///< Write
     VXI_11_DEV_READ = 12,    ///< Read
-    VXI_11_DEV_READSTB = 13, ///< Read the status byte (not implemented)
-    VXI_11_DEV_CLEAR = 15,   ///< Clear the device (not implemented)    
-    VXI_11_DESTROY_LINK = 23 ///< Destroy the link
+    VXI_11_DEV_READSTB = 13, ///< Read the status byte (partially implemented)
+    VXI_11_DEV_TRIGGER = 14, ///< Trigger the device (not implemented)
+    VXI_11_DEV_CLEAR = 15,   ///< Clear the device
+    VXI_11_DEV_LOCK = 18,    ///< Lock the device (not implemented)
+    VXI_11_DESTROY_LINK = 23, ///< Destroy the link
+    VXI_11_CREATE_INT_CHAN = 25 ///< Create an interrupt channel (not implemented)
 };
 
 /*!

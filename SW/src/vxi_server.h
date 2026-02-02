@@ -91,14 +91,18 @@ class SCPI_handler_interface
 {
   public:
     virtual ~SCPI_handler_interface() {} 
+
     // write a command to the SCPI parser or device
-    virtual SCPI_handler_read_stop_reasons write(int address, const char *data, size_t len, bool is_end = true) = 0;
+    virtual SCPI_handler_read_stop_reasons write(int address, const char *data, size_t len, bool is_end = true, uint32_t io_timeout = 1200) = 0;
 
     // read a response from the SCPI parser or device and write to a Stream
+    virtual SCPI_handler_read_stop_reasons read(int address, vxiBufStream &dataStream, size_t max_size, uint32_t io_timeout = 1200) = 0;
 
-    virtual SCPI_handler_read_stop_reasons read(int address, vxiBufStream &dataStream, size_t max_size) = 0;
-    virtual uint8_t read_stb(int address) = 0;
-    virtual SCPI_handler_read_stop_reasons devclear(int address) = 0;
+    // read the status byte from the device
+    virtual uint8_t read_stb(int address, uint32_t io_timeout = 1200) = 0;
+
+    // clear the device
+    virtual SCPI_handler_read_stop_reasons devclear(int address, uint32_t io_timeout = 1200) = 0;
     
     // claim_control() should return true if the SCPI parser is ready to accept a command
     virtual bool claim_control() = 0;

@@ -119,12 +119,27 @@ class SCPI_handler : public SCPI_handler_interface {
         return true;
     }
 
-    SCPI_handler_read_stop_reasons write(int address, const char *data, size_t len, bool is_end = true) override {
+    void set_timeout(uint32_t io_timeout) {
+        if (io_timeout == 0) {
+            io_timeout = 1200;
+        }
+        if (io_timeout < 10) {
+            io_timeout = 10;
+        }
+        if (io_timeout > 32000) {
+            io_timeout = 32000;
+        }
+        gpibBus.cfg.rtmo = io_timeout;
+    }
+
+    SCPI_handler_read_stop_reasons write(int address, const char *data, size_t len, bool is_end = true, uint32_t io_timeout = 1200) override {
 #ifdef DUMMY_DEVICE
         debugPort.print(F("SCPI write: "));
         printBuf(data, len);
         debugPort.println();
 #else
+        set_timeout(io_timeout);
+
         if (address == 0) {
             // maybe we need to address a device directly on the bus
             address = gpibBus.cfg.caddr;
@@ -156,13 +171,15 @@ class SCPI_handler : public SCPI_handler_interface {
         return SRS_NONE;
     }
 
-    SCPI_handler_read_stop_reasons read(int address, vxiBufStream &dataStream, size_t max_size) override {
+    SCPI_handler_read_stop_reasons read(int address, vxiBufStream &dataStream, size_t max_size, uint32_t io_timeout = 1200) override {
 #ifdef DUMMY_DEVICE
         // Simulate a device response
         uint8_t data[] = "SCPI response";
         dataStream.write(data, strlen(data));
         return SRS_EOI;
 #else
+        set_timeout(io_timeout);
+
         if (address == 0) {
             // maybe we need to address a device directly on the bus
             address = gpibBus.cfg.caddr;
@@ -212,11 +229,13 @@ class SCPI_handler : public SCPI_handler_interface {
 #endif
     }
 
-    uint8_t read_stb(int address) override {
+    uint8_t read_stb(int address, uint32_t io_timeout = 1200) override {
 #ifdef DUMMY_DEVICE
         debugPort.println(F("SCPI read STB"));
         return 0xAA; // dummy status byte
 #else
+        set_timeout(io_timeout);
+
         if (address == 0) {
             // maybe we need to address a device directly on the bus
             address = gpibBus.cfg.caddr;
@@ -231,11 +250,13 @@ class SCPI_handler : public SCPI_handler_interface {
 #endif
     }
 
-    SCPI_handler_read_stop_reasons devclear(int address) override {
+    SCPI_handler_read_stop_reasons devclear(int address, uint32_t io_timeout = 1200) override {
 #ifdef DUMMY_DEVICE
         debugPort.println(F("SCPI device clear"));
         return SRS_NONE;
 #else
+        set_timeout(io_timeout);
+
         if (address == 0) {
             // maybe we need to address a device directly on the bus
             address = gpibBus.cfg.caddr;

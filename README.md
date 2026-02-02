@@ -81,13 +81,15 @@ It is discoverable via UDP, but there is no publication via mDNS (yet).
 
 Not all of the above will be possible with the limited resources the device has, but let us know if you encounter any problems, and we'll look if it is possible to make the implementation more complete.
 
-Some remarks on specific commands:
+Some remarks on specific commands that may be useful for older instruments:
 
-- Read Status Byte (pyvisa: `inst.read_stb()`):
-  - only if you address the controller itself, it will return a valid status byte. The operation is not supported on the connected instruments.The prologix interface has the same limitation.
 - Device Clear (pyvisa: `inst.clear()`):
   - if sent to the controller, it is NOT interpreted as a universal device clear (all devices on the bus), but a clear of the controller: all connected devices will be returned to local control and the bus will go idle.
-  - if sent to an instrument, only that instrument will be cleared. Depending on the instrument, it may reset or not, and may take a significant amount of time.
+  - if sent to an instrument, only that instrument will be sent a "clear" command. Depending on the instrument, it may reset or not, potentially taking a significant amount of time.
+  - modern devices do not react to this. Use `*CLS` or `*RST` instead.
+- Read Status Byte (pyvisa does not support this for VXI-11, but LabView does):
+  - only if you address the controller itself, it will return a valid status byte. The operation is not supported on the connected instruments. The prologix interface has the same limitation.
+  - modern devices support `*STB?` queries, which is the preferred way to get the status byte of an instrument.
 - While it is in theory possible to support "Go to local/remote" commands, neither pyvisa nor LabView support it properly on VXI-11 devices, so it is not implemented. See Device Clear above.
 
 ### The number of instruments you can connect

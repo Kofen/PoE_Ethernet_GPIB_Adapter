@@ -716,6 +716,7 @@ if (lnRdy>0){
   if (dataPort.available()) lnRdy = serialIn_h();
 
   delayMicroseconds(5);
+  // >>> CHANGED FROM AR488 UPSTREAM >>>: added return value for number of clients
   return nrclients;
 }
 /***** END MAIN LOOP *****/

@@ -716,6 +716,7 @@ if (lnRdy>0){
   if (dataPort.available()) lnRdy = serialIn_h();
 
   delayMicroseconds(5);
+  return nrclients;
 }
 /***** END MAIN LOOP *****/
 

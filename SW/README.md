@@ -44,6 +44,7 @@ The file was renamed to 'prologix_server.cpp'. The code sections that were modif
 * `startDataPort(unsigned long baud)` version added that points to a `EthernetStream`, surrounded by `#ifdef AR_ETHERNET_PORT/#else/#endif`
 * `int maintainDataPort()` added
 * `printBuf()` added
+* anticipated buffer overlow problem resolution for AR488 issue #83
 
 ## AR488_Config.h
 

@@ -136,7 +136,7 @@ int maintainDataPort() {
   }
 
   void printHexAscii(uint8_t byteval) {
-    char x[6] = {'\0'};
+    char x[8] = {'\0'};  // >>> CHANGED FROM AR488 UPSTREAM >>>:anticipated AR488 issue #83
     sprintf(x,"%c [%02X]\n", byteval, byteval);
     debugPort.print(x);
   }

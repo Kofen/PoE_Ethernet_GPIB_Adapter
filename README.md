@@ -201,8 +201,6 @@ This project is licensed under the GPL V3. See the [LICENSE](LICENSE) file for d
 
 ## Release notes
 
-- 2.32beta:
-
 - 2.2:
   - Fixes and improvements to VXI-11.2 implementation, especially regarding large reads. Improved compatibility with older instruments.
   - Solved communication issues with certain instruments that have weak or absent pullups on the GPIB bus.

@@ -202,16 +202,17 @@ This project is licensed under the GPL V3. See the [LICENSE](LICENSE) file for d
 ## Release notes
 
 - 2.32beta:
-  - Improved VXI-11 completeness:
-    - Device Clear command support
-    - Read Status Byte support (only for the controller itself)
-    - timeout control
+
 - 2.2:
   - Fixes and improvements to VXI-11.2 implementation, especially regarding large reads. Improved compatibility with older instruments.
   - Solved communication issues with certain instruments that have weak or absent pullups on the GPIB bus.
   - Backend updated to AR488 0.53.39
   - The web server had to be removed when using the Prologix interface (ROM size limitation). It is still available when using VXI-11.2.
   - Improved debugging information on serial console, when activated
+  - Improved VXI-11 completeness:
+    - Device Clear command support
+    - Read Status Byte support (only for the controller itself)
+    - timeout control
 - 2.1:
   - Improvements to VXI-11.2 implementation, especially regarding large reads.
 - 2.0:

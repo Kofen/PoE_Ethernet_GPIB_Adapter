@@ -15,9 +15,9 @@
 /***** GPIB COMMAND & STATUS DEFINITIONS *****/
 /***** vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv *****/
 
-// >>> CHANGED FROM AR488 UPSTREAM >>> added AR488_GPIBconf_EXTEND section
+// >>> CHANGED FROM AR488 UPSTREAM >>> added AR488_GPIBconf_EXTEND section, and corrected size
 #ifdef AR488_GPIBconf_EXTEND
-#define GPIB_CFG_SIZE 87
+#define GPIB_CFG_SIZE 92
 #else
 #define GPIB_CFG_SIZE 83
 #endif

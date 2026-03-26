@@ -503,22 +503,32 @@ void setup_gpibBusConfig() {
 // Un-comment for diagnostic purposes
 
   // Read config from EEPROM
+  // >>> CHANGED FROM AR488 UPSTREAM >>> reworked the EEPROM handling
 #ifdef E2END
+	static_assert(sizeof(gpibBus.cfg) == GPIB_CFG_SIZE, "The size of the GPIB configuration is incorrect. Please check the AR488_GPIBconf_EXTEND section in AR488_GPIBbus.h, and adjust the GPIB_CFG_SIZE accordingly.");
+
 //  DB_RAW_PRINTLN(F("EEPROM detected!"));
   // Read data from non-volatile memory
   //(will only read if previous config has already been saved)
+  bool eraseEeprom = true;
   if (!isEepromClear()) {
 //DB_RAW_PRINTLN(F("EEPROM has data."));
-    if (!epReadData(gpibBus.cfg.db, GPIB_CFG_SIZE)) {
+    if (epReadData(gpibBus.cfg.db, GPIB_CFG_SIZE)) {
+      eraseEeprom = false;
+    } else {
+      DB_RAW_PRINTLN(F("EEPROM CRC check failed. Erasing EEPROM...."));
+    }
+  }
+  if (eraseEeprom) {
       // CRC check failed - config data does not match EEPROM
-//DB_RAW_PRINTLN(F("CRC check failed. Erasing EEPROM...."));
+      DB_RAW_PRINTLN(F("Initialising EEPROM...."));
       epErase();
       gpibBus.setDefaultCfg();
       epWriteData(gpibBus.cfg.db, GPIB_CFG_SIZE);
 //DB_RAW_PRINTLN(F("EEPROM data set to default."));
-    }
   }
 #endif
+
 
   // SN7516x IC support
 #ifdef SN7516X

@@ -1,7 +1,9 @@
 #include <Arduino.h>
 #include "AR488_ComPorts.h"
-// #include <DEVNULL.h>
-/***** AR488_ComPorts.cpp, ver. 0.51.18, 26/02/2023 *****/
+
+/***** AR488_ComPorts.cpp, ver. 0.53.39, 29/01/2026 *****/
+
+// >>> CHANGED FROM AR488 UPSTREAM >>> removed DEVNULL
 
 /***************************************/
 /***** Serial Port implementations *****/
@@ -14,34 +16,37 @@
 
 #ifdef DATAPORT_ENABLE
 
+// >>> CHANGED FROM AR488 UPSTREAM >>> added #ifndef AR_ETHERNET_PORT
 #ifndef AR_ETHERNET_PORT
 
   #ifdef AR_SERIAL_SWPORT
 
     SoftwareSerial dataPort(SW_SERIAL_RX_PIN, SW_SERIAL_TX_PIN);
 
-    void startDataPort() {
-      dataPort.begin(AR_SERIAL_SPEED);
+    void startDataPort(unsigned long baud) {
+      dataPort.begin(baud);
     }
 
   #else
 
     Stream& dataPort = AR_SERIAL_PORT;
 
-    void startDataPort() {
-      AR_SERIAL_PORT.begin(AR_SERIAL_SPEED);
+    void startDataPort(unsigned long baud) {
+      AR_SERIAL_PORT.begin(baud);
     }
   
   #endif
 
+// >>> CHANGED FROM AR488 UPSTREAM >>> added maintainDataPort(), ethernetPort and startDataPort
   int maintainDataPort() { return 0; }
 #else
   EthernetStream ethernetPort;
   EthernetStream& dataPort = ethernetPort;
 
-void startDataPort() {
+void startDataPort(unsigned long baud) {
     //byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; // Temporary hard coded MAC
     //IPAddress ip(0, 0, 0, 0); // Same
+    // baud parameter is ignored for Ethernet
 
     // debugPort.print(F("Starting TCP server on port "));
     // debugPort.println(PROLOGIX_PORT);
@@ -64,7 +69,7 @@ void startDataPort() {
 int maintainDataPort() {
   return ethernetPort.maintain();
 }
-#endif
+#endif  // >>> CHANGED FROM AR488 UPSTREAM >>> endif AR_ETHERNET_PORT
 #else
 
   DEVNULL _dndata;
@@ -83,20 +88,21 @@ int maintainDataPort() {
 
     SoftwareSerial debugPort(SW_SERIAL_RX_PIN, SW_SERIAL_TX_PIN);
 
-    void startDebugPort() {
-      debugPort.begin(DB_SERIAL_SPEED);
+    void startDebugPort(unsigned long baud) {
+      debugPort.begin(baud);
     }
   
   #else
 
     Stream& debugPort = DB_SERIAL_PORT;
 
-    void startDebugPort() {
-      DB_SERIAL_PORT.begin(DB_SERIAL_SPEED);
+    void startDebugPort(unsigned long baud) {
+      DB_SERIAL_PORT.begin(baud);
     }
 
   #endif
 
+  // >>> CHANGED FROM AR488 UPSTREAM >>> added printBuf()
   void printBuf(const char *data, size_t len) {
     debugPort.print("\"");
     for (size_t i = 0; i < len; i++) {
@@ -120,12 +126,18 @@ int maintainDataPort() {
     }
     debugPort.print("\" (length: ");
     debugPort.print(len);
-    debugPort.print(")\n");
+    debugPort.print(")");
   }
 
   void printHex(uint8_t byteval) {
     char x[4] = {'\0'};
     sprintf(x,"%02X ", byteval);
+    debugPort.print(x);
+  }
+
+  void printHexAscii(uint8_t byteval) {
+    char x[8] = {'\0'};  // >>> CHANGED FROM AR488 UPSTREAM >>>:anticipated AR488 issue #83
+    sprintf(x,"%c [%02X]\n", byteval, byteval);
     debugPort.print(x);
   }
 

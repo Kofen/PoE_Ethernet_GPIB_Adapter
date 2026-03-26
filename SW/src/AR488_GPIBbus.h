@@ -8,28 +8,18 @@
 
 
 
-/***** AR488_GPIBbus.cpp, ver. 0.53.02, 04/04/2025 *****/
+/***** AR488_GPIBbus.cpp, ver. 0.53.39, 29/01/2026 *****/
 
 
 /*********************************************/
 /***** GPIB COMMAND & STATUS DEFINITIONS *****/
 /***** vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv *****/
+
+// >>> CHANGED FROM AR488 UPSTREAM >>> added AR488_GPIBconf_EXTEND section, and corrected size
 #ifdef AR488_GPIBconf_EXTEND
-#define GPIB_CFG_SIZE 87
+#define GPIB_CFG_SIZE 92
 #else
 #define GPIB_CFG_SIZE 83
-#endif
-
-/***** Debug Port *****/
-#ifdef DB_SERIAL_ENABLE
-extern Stream &debugPort;
-/* Configured in Config.h */
-//#define DEBUG_GPIBbus_RECEIVE
-//#define DEBUG_GPIBbus_SEND
-//#define DEBUG_GPIBbus_CONTROL
-//#define SN7516X
-/* Configured in Config.h */
-
 #endif
 
 
@@ -67,6 +57,19 @@ extern Stream &debugPort;
 #define DTAS 0x09  // Device talker active (sending) state
 
 
+/***** BITS ASSIGNED TO GPIB BYTE *****/
+#define IFC_BIT (1 << 0)
+#define NDAC_BIT (1 << 1)
+#define NRFD_BIT (1 << 2)
+#define DAV_BIT (1 << 3)
+#define EOI_BIT (1 << 4)
+#define REN_BIT (1 << 5)
+#define SRQ_BIT (1 << 6)
+#define ATN_BIT (1 << 7)
+#define CTRL_BITS (0xE1)
+#define HSHK_BITS (0x1E)
+#define ALL_BITS (0xFF)
+
 /***** Addressing direction *****/
 #define TONONE 0
 #define TOLISTEN 1
@@ -78,8 +81,7 @@ extern Stream &debugPort;
 #define WITH_EOI true
 
 
-/***** Handshake states *****/
-enum gpibHandshakeStates {
+enum gpibHandshakeState: uint8_t {
   // Common
   HANDSHAKE_START,
   HANDSHAKE_COMPLETE,
@@ -110,27 +112,14 @@ enum receiveState: uint8_t {
 };
 
 
-#define IFC_BIT (1 << 0)
-#define NDAC_BIT (1 << 1)
-#define NRFD_BIT (1 << 2)
-#define DAV_BIT (1 << 3)
-#define EOI_BIT (1 << 4)
-#define REN_BIT (1 << 5)
-#define SRQ_BIT (1 << 6)
-#define ATN_BIT (1 << 7)
-#define CTRL_BITS (0xE1)
-#define HSHK_BITS (0x1E)
-#define ALL_BITS (0xFF)
-
-
-enum operatingModes {
+enum operatingMode: uint8_t {
   OP_IDLE,
   OP_CTRL,
   OP_DEVI
 };
 
 
-enum transmitModes {
+enum transmitMode: uint8_t {
   TM_IDLE,
   TM_RECV,
   TM_SEND
@@ -171,6 +160,7 @@ public:
       uint32_t serial;  // Serial number
       uint8_t idn;      // Send ID in response to *idn? 0=disable, 1=send name; 2=send name+serial
       uint8_t hflags;   // Handshaking indicator flags
+// >>> CHANGED FROM AR488 UPSTREAM >>> added AR488_GPIBconf_EXTEND section
 #ifdef AR488_GPIBconf_EXTEND      
       uint8_t ip[4];    // IP address
 #endif
@@ -192,8 +182,8 @@ public:
   void startControllerMode();
   void startDeviceMode();
 
-  void setOperatingMode(enum operatingModes mode);
-  void setTransmitMode(enum transmitModes mode);
+  void setOperatingMode(enum operatingMode mode);
+  void setTransmitMode(enum transmitMode mode);
   void assertSignal(uint8_t sig);
   void clearSignal(uint8_t sig);
   void clearAllSignals();
@@ -222,11 +212,11 @@ public:
   void setStatus(uint8_t statusByte);
   bool sendCmd(uint8_t cmdByte);
   bool sendSecondaryCmd(uint8_t paddr, uint8_t saddr, char * data, uint8_t dsize);
-  enum gpibHandshakeStates readByte(uint8_t *db, bool readWithEoi, bool *eoi);
-  enum gpibHandshakeStates writeByte(uint8_t db, bool isLastByte);
-  enum receiveState receiveData(Stream &dataStream, bool detectEoi, bool detectEndByte, uint8_t endByte, int maxSize = 0);
+  enum gpibHandshakeState readByte(uint8_t *db, bool readWithEoi, bool *eoi);
+  enum gpibHandshakeState writeByte(uint8_t db, bool isLastByte);
+  enum receiveState receiveData(Stream &dataStream, bool detectEoi, bool detectEndByte, uint8_t endByte, size_t maxSize = 0);
   void sendData(const char *data, uint8_t dsize, bool isLastPacket = true);
-  void clearDataBus();
+//  void clearDataBus();
   void setControlVal(uint8_t value);
   void setDataVal(uint8_t value);
 
@@ -238,13 +228,14 @@ public:
 
   bool addressDevice(uint8_t pri, uint8_t sec, uint8_t dir);
   bool unAddressDevice();
-  bool haveAddressedDevice();
+  uint8_t haveAddressedDevice();
 
 private:
 
   bool txBreak;  // Signal to break the GPIB transmission
   uint8_t deviceAddressed;
   bool isTerminatorDetected(uint8_t bytes[3], uint8_t eorSequence);
+  enum transmitMode _xmitMode;
 
   // Interrupt flag for MCP23S17
 #ifdef AR488_MCP23S17

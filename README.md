@@ -73,13 +73,23 @@ With the limited resources, this device is meant to work with the most common to
 - instrument locking via VXI-11
 - VXI-11 interrupts
 - the VXI-11 abort channel
-- for now: complete end of reply handling. This will be corrected. It now only supports reading on eoi, and therefor misses correct handling of
-  - terminating character supplied in the read request packet
-  - maximum size requested in the read request packet
+- authentication via VXI-11
+- terminating character control. It now only supports reading on eoi, and will ignore any requested terminating character.
 
 It is discoverable via UDP, but there is no publication via mDNS (yet).
 
 Not all of the above will be possible with the limited resources the device has, but let us know if you encounter any problems, and we'll look if it is possible to make the implementation more complete.
+
+Some remarks on specific commands that may be useful for older instruments:
+
+- Device Clear (pyvisa: `inst.clear()`):
+  - if sent to the controller, it is NOT interpreted as a universal device clear (all devices on the bus), but a clear of the controller: all connected devices will be returned to local control and the bus will go idle.
+  - if sent to an instrument, only that instrument will be sent a "clear" command. Depending on the instrument, it may reset or not, potentially taking a significant amount of time.
+  - modern devices do not react to this. Use `*CLS` or `*RST` instead.
+- Read Status Byte (pyvisa does not support this for VXI-11, but LabView does):
+  - only if you address the controller itself, it will return a valid status byte. The operation is not supported on the connected instruments. The prologix interface has the same limitation.
+  - modern devices support `*STB?` queries, which is the preferred way to get the status byte of an instrument.
+- While it is in theory possible to support "Go to local/remote" commands, neither pyvisa nor LabView support it properly on VXI-11 devices, so it is not implemented. See Device Clear above.
 
 ### The number of instruments you can connect
 
@@ -106,7 +116,25 @@ Know that if you use VXI-11 and pyvisa, you may need to set the `instr.chunk_siz
 
 ### Prologix and pyvisa
 
-Support for prologix in pyvisa has been pending since a long time. Depending on your situation, you can try to bypass it by faking the prologix service as being a raw socket service (ex `TCPIP::192.168.7.206::1234::SOCKET`), and then mix the SCPI commands with the correct `++` commands.
+Support for prologix in pyvisa has been pending since a long time, and are not well documented. There are 2 main possibilities:
+
+- You can fake the prologix service as being a raw socket service (ex `TCPIP::192.168.7.206::1234::SOCKET`), and then mix the SCPI commands with the correct `++` commands. This might be the most robust for now, but requires more work on the user side.
+- or use constructions like this (not well documented yet with pyvisa, and you need a recent version of pyvisa):
+
+```python
+import pyvisa
+rm = pyvisa.ResourceManager()
+prlgx = rm.open_resource("PRLGX-TCPIP::192.168.7.206::INTFC")  # This is the gateway, and pyvisa will pick port 1234 automatically. It will propose itself as a native GPIB interface, so you can't also have a GPIB card in your system
+inst1 = rm.open_resource("GPIB::1::INSTR")  # instrument at address 1
+inst2 = rm.open_resource("GPIB::2::INSTR")  # etc
+inst18 = rm.open_resource("GPIB::18::INSTR")
+# and now you can talk to the instruments (one at a time please):
+print(inst1.query("*IDN?"))
+print(inst2.query("*IDN?"))
+print(inst18.query("*ID?"))
+```
+
+If you use this method, be aware that pyvisa tries to be intelligent, and emits the `++read eoi` itself command when you do a query. But you can no longer emit that yourself. That means that you can no longer call `read_raw` or other standalone read methods. Only use `query...` and `write` methods.
 
 ---
 
@@ -121,7 +149,7 @@ There are 3 parts:
   - green slow flashing for idle
   - green/blue faster flashing when clients are connected
 - the **serial console** (via USB): This console shows startup information, ports used, and has a small menu.
-- the **Web Server** (on port 80): it shows some help texts, the number of connected clients, and allows interaction with any of the connected instruments. The latter functionality is however only available with the VXI-11 service, as Prologix does not leave enough ROM space available.
+- the **Web Server** (on port 80): it shows some help texts, the number of connected clients, and allows interaction with any of the connected instruments. The web server is however only available with the VXI-11 service, as Prologix does not leave enough ROM space available.
 
 ### The serial menu
 
@@ -134,13 +162,13 @@ It has the following options:
 
 ### The Web server
 
-An example of the web page when using VXI-11:
+The web server is available only when using the VXI-11 interface.
+
+An example of the web page is shown below:
 
 <kbd>
 <img src="./Img/web_server.png">
 </kbd>
-
-Note that the interactive part is not available when using Prologix.
 
 Explanation of the buttons:
 
@@ -151,7 +179,7 @@ Explanation of the buttons:
 * <kbd>Read</kbd>: Read from the selected instrument.
 * <kbd>Clear history</kbd>: clear the contents of history.
 
-Do not interact with the instruments via the web interface while you also interact with the instruments from the VXI or Prologix interface.
+Do not interact with the instruments via the web interface while you also interact with the instruments from the VXI interface.
 
 ---
 
@@ -170,6 +198,27 @@ See [SW/README.md](SW/README.md) for more information.
 ## License
 
 This project is licensed under the GPL V3. See the [LICENSE](LICENSE) file for details.
+
+## Release notes
+
+- 2.2:
+  - Fixes and improvements to VXI-11.2 implementation, especially regarding large reads. Improved compatibility with older instruments.
+  - Solved communication issues with certain instruments that have weak or absent pullups on the GPIB bus.
+  - Backend updated to AR488 0.53.39
+  - The web server had to be removed when using the Prologix interface (ROM size limitation). It is still available when using VXI-11.2.
+  - Improved debugging information on serial console, when activated
+  - Improved VXI-11 completeness:
+    - Device Clear command support
+    - Read Status Byte support (only for the controller itself)
+    - timeout control
+- 2.1:
+  - Improvements to VXI-11.2 implementation, especially regarding large reads.
+- 2.0:
+  - Added support for VXI-11.2
+  - Added interactive web interface (only for VXI-11.2)
+  - Backend updated to AR488 0.53.03
+- 1.0:
+  - First public version
 
 ## Acknowledgements
 

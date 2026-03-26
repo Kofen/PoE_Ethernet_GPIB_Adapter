@@ -197,26 +197,32 @@ bool VXI_Server::handle_packet(EthernetClient &client, int slot, bool overflow =
 #endif
     } else {
         switch (vxi_request->procedure) {
-        case rpc::VXI_11_CREATE_LINK:
-            create_link(client, slot);
-            break;
-        case rpc::VXI_11_DEV_READ:
-            read(client, slot);
-            break;
-        case rpc::VXI_11_DEV_WRITE:
-            write(client, slot);
-            break;
-        case rpc::VXI_11_DESTROY_LINK:
-            destroy_link(client, slot);
-            bClose = true;
-            break;
-        default:
-#ifdef LOG_VXI_DETAILS
-            debugPort.print(F("Invalid VXI-11 procedure (received "));
-            debugPort.printf("%u)\n", (uint32_t)(vxi_request->procedure));
-#endif
-            rc = rpc::PROC_UNAVAIL;
-            break;
+            case rpc::VXI_11_CREATE_LINK:
+                create_link(client, slot);
+                break;
+            case rpc::VXI_11_DEV_READ:
+                read(client, slot);
+                break;
+            case rpc::VXI_11_DEV_WRITE:
+                write(client, slot);
+                break;
+            case rpc::VXI_11_DESTROY_LINK:
+                destroy_link(client, slot);
+                bClose = true;
+                break;
+            case rpc::VXI_11_DEV_READSTB:
+                if (!readstb(client, slot)) {
+                    rc = rpc::PROC_UNAVAIL;
+                }
+                break;
+            case rpc::VXI_11_DEV_CLEAR:
+                if (!devclear(client, slot)) {
+                    rc = rpc::PROC_UNAVAIL;
+                }
+                break;
+            default:
+                rc = rpc::PROC_UNAVAIL;
+                break;
         }
     }
 
@@ -227,6 +233,15 @@ bool VXI_Server::handle_packet(EthernetClient &client, int slot, bool overflow =
 
     if (rc != rpc::SUCCESS) {
         // no need to do memset, rpc_response_packet will be filled for the rest by the send_vxi_packet function 
+#ifdef LOG_VXI_DETAILS
+        if (rc == rpc::PROC_UNAVAIL) {
+            debugPort.print(F("Invalid VXI-11 procedure (received "));
+            debugPort.printf("%u)\n", (uint32_t)(vxi_request->procedure));
+        } else {
+            debugPort.print(F("VXI-11 request failed with error code "));
+            debugPort.printf("%u\n", (uint32_t)rc);
+        }
+#endif
         vxi_response->rpc_status = rc;
         send_vxi_packet(client, sizeof(rpc_response_packet));
     }
@@ -324,9 +339,9 @@ void VXI_Server::destroy_link(EthernetClient &client, int slot)
     // destroy_response points to the static buffer vxi_send_buffer
 
 #ifdef LOG_VXI_DETAILS
-    debugPort.print(F("DESTROY LINK LID="));
+    debugPort.print(F("DESTROY LINK slot="));
     debugPort.print(slot);
-    debugPort.print(F(" on port "));
+    debugPort.print(F("; port="));
     debugPort.print((uint32_t)vxi_port);
     debugPort.println();        
 #endif
@@ -345,6 +360,30 @@ void VXI_Server::read(EthernetClient &client, int slot)
     // read_request points to the static buffer vxi_read_buffer
     // read_response points to the static buffer vxi_send_buffer
 
+#ifdef LOG_VXI_DETAILS
+    char buffer[16];
+    debugPort.print(F("READ DATA Call slot="));
+    debugPort.print(slot);
+    debugPort.print(F("; port="));
+    debugPort.print((uint32_t)vxi_port);
+    debugPort.print(F("; gpib_address="));
+    debugPort.print(addresses[slot]);
+    debugPort.print(F("; LID="));
+    debugPort.print((uint32_t)read_request->link_id);
+    debugPort.print(F("; Size="));
+    debugPort.print((uint32_t)read_request->request_size);
+    debugPort.print(F("; I/O_Timeout="));
+    debugPort.print((uint32_t)read_request->io_timeout);
+    debugPort.print(F("; Lock_Timeout="));
+    debugPort.print((uint32_t)read_request->lock_timeout);
+    debugPort.print(F("; Flags="));
+    sprintf(buffer, "0x%08X", (uint32_t)read_request->flags);
+    debugPort.print(buffer);
+    debugPort.print(F("; Term_Char="));
+    sprintf(buffer, "0x%02X", (uint8_t)read_request->term_char[3]);
+    debugPort.println(buffer);
+#endif
+
     uint32_t max_len = MAX_READ_RESPONSE_DATA_SIZE; // I do not have more than that. The output buffer will overflow
     uint32_t request_len = (uint32_t)read_request->request_size;
     if (request_len > 0 && request_len < max_len) {
@@ -354,33 +393,44 @@ void VXI_Server::read(EthernetClient &client, int slot)
     memset(read_response, 0, sizeof(read_response_packet));
     // If I surpass my max size, I just cut off and the client will have to issue another read 
     vxiBufStream vxiStream(read_response->data, max_len);  ///< using the static buffer's data area
-    SCPI_handler_read_stop_reasons rv = scpi_handler.read(addresses[slot], vxiStream, max_len);
+    SCPI_handler_read_stop_reasons rv = scpi_handler.read(addresses[slot], vxiStream, max_len, read_request->io_timeout);
     // FIXME handle error codes, maybe even pick up errors from the SCPI Parser
-#ifdef LOG_VXI_DETAILS
-    debugPort.print(F("READ DATA LID="));
-    debugPort.print(slot);
-    debugPort.print(F(" on port "));
-    debugPort.print((uint32_t)vxi_port);
-    debugPort.print(F("; gpib_address="));
-    debugPort.print(addresses[slot]);
-    debugPort.print(F("; data_len = "));
-    debugPort.print((uint32_t)vxiStream.len());
-    debugPort.print(F("; max_len="));
-    debugPort.print(max_len);
-    debugPort.print(F("; stop_reason="));
-    debugPort.print(rv);    
-    debugPort.print(F("; data="));
-    printBuf(read_response->data, (int)vxiStream.len());    
-#endif
 
     read_response->rpc_status = rpc::SUCCESS;
-    read_response->error = rpc::NO_ERROR;
+    if (rv == SRS_TIMEOUT) {
+        read_response->error = rpc::IO_TIMEOUT;
+    } else if (rv == SRS_ERROR) {
+        read_response->error = rpc::NOT_ACCESSIBLE; // generic error code for now
+    } else {
+        read_response->error = rpc::NO_ERROR;
+    }
     if (rv == SRS_MAXSIZE) {
         read_response->reason = 0; // tell the user to read again
     } else {
         read_response->reason = rpc::END;
     }
     read_response->data_len = (uint32_t)vxiStream.len();
+
+#ifdef LOG_VXI_DETAILS
+    debugPort.print(F("READ DATA Reply slot="));
+    debugPort.print(slot);
+    debugPort.print(F("; port="));
+    debugPort.print((uint32_t)vxi_port);
+    debugPort.print(F("; gpib_address="));
+    debugPort.print(addresses[slot]);
+    debugPort.print(F("; max_len="));
+    debugPort.print(max_len);
+    debugPort.print(F("; stop_reason="));
+    debugPort.print(SCPI_handler_read_stop_reasons_to_string(rv));
+    debugPort.print(F("; Error_Code="));
+    debugPort.print((uint32_t)read_response->error);
+    debugPort.print(F("; Reason="));
+    sprintf(buffer, "0x%08X", (uint32_t)read_response->reason);
+    debugPort.print(buffer);
+    debugPort.print(F("; Data="));
+    printBuf(read_response->data, (int)vxiStream.len());
+    debugPort.println();
+#endif
 
     send_vxi_packet(client, sizeof(read_response_packet) + read_response->data_len);
 }
@@ -413,26 +463,158 @@ void VXI_Server::write(EthernetClient &client, int slot)
     }
 
 #ifdef LOG_VXI_DETAILS
-    debugPort.print(F("WRITE DATA LID="));
+    char buffer[16];
+    debugPort.print(F("WRITE DATA Call slot="));
     debugPort.print(slot);
-    debugPort.print(F(" on port "));
+    debugPort.print(F("; port="));
     debugPort.print((uint32_t)vxi_port);
     debugPort.print(F("; gpib_address="));
-    debugPort.print(addresses[slot]);        
-    debugPort.print(F("; is_eoi="));
-    debugPort.print(is_eoi);        
+    debugPort.print(addresses[slot]);
+    debugPort.print(F("; LID="));
+    debugPort.print((uint32_t)write_request->link_id);
+    debugPort.print(F("; I/O_Timeout="));
+    debugPort.print((uint32_t)write_request->io_timeout);
+    debugPort.print(F("; Lock_Timeout="));
+    debugPort.print((uint32_t)write_request->lock_timeout);
+    debugPort.print(F("; Flags="));
+    sprintf(buffer, "0x%08X", (uint32_t)write_request->flags);
+    debugPort.print(buffer);
     debugPort.print(F("; data="));
     printBuf(write_request->data, (int)wlen);
+    debugPort.println();
 #endif
     /*  Parse and respond to the SCPI command  */
-    scpi_handler.write(addresses[slot], write_request->data, wlen, is_eoi);
+    SCPI_handler_read_stop_reasons rv = scpi_handler.write(addresses[slot], write_request->data, wlen, is_eoi, write_request->io_timeout);
 
     /*  Generate the response  */
     memset(write_response, 0, sizeof(write_response_packet));
     write_response->rpc_status = rpc::SUCCESS;
-    write_response->error = rpc::NO_ERROR;
+    if (rv == SRS_TIMEOUT) {
+        write_response->error = rpc::IO_TIMEOUT;
+    } else if (rv == SRS_ERROR) {
+        write_response->error = rpc::NOT_ACCESSIBLE; // generic error code for now
+    } else {
+        write_response->error = rpc::NO_ERROR;
+    }
     write_response->size = len; // with the potentially truncated original (non trimmed) length
+#ifdef LOG_VXI_DETAILS
+    debugPort.print(F("WRITE DATA Reply slot="));
+    debugPort.print(slot);
+    debugPort.print(F("; port="));
+    debugPort.print((uint32_t)vxi_port);
+    debugPort.print(F("; gpib_address="));
+    debugPort.print(addresses[slot]);
+    debugPort.print(F("; Error_Code="));
+    debugPort.print((uint32_t)write_response->error);
+    debugPort.print(F("; Size="));
+    debugPort.print((uint32_t)write_response->size);
+    debugPort.println();
+#endif
+
     send_vxi_packet(client, sizeof(write_response_packet));
+}
+
+bool VXI_Server::readstb(EthernetClient &client, int slot)
+{
+    // This is where we read the status byte from the device
+    
+    // Use of shared memory zones:
+    // readstb_request points to the static buffer vxi_read_buffer
+    // readstb_response points to the static buffer vxi_send_buffer
+
+    // Will return False when the device does not support the request
+
+#ifdef LOG_VXI_DETAILS
+    char buffer[16];
+    debugPort.print(F("READSTB DATA Call slot="));
+    debugPort.print(slot);
+    debugPort.print(F("; port="));
+    debugPort.print((uint32_t)vxi_port);
+    debugPort.print(F("; gpib_address="));
+    debugPort.print(addresses[slot]);
+    debugPort.print(F("; LID="));
+    debugPort.print((uint32_t)readstb_request->link_id);
+    debugPort.print(F("; Flags="));
+    sprintf(buffer, "0x%08X", (uint32_t)readstb_request->flags);
+    debugPort.print(buffer);
+    debugPort.print(F("; I/O_Timeout="));
+    debugPort.print((uint32_t)readstb_request->io_timeout);
+    debugPort.print(F("; Lock_Timeout="));
+    debugPort.println((uint32_t)readstb_request->lock_timeout);
+#endif
+
+    readstb_response->rpc_status = rpc::SUCCESS;
+    readstb_response->error = rpc::NO_ERROR;
+    readstb_response->status = scpi_handler.read_stb(addresses[slot], readstb_request->io_timeout);
+    if (readstb_response->status == 0xFF) {
+        // invalid status byte, probably not implemented
+        return false;
+    }   
+
+#ifdef LOG_VXI_DETAILS
+    debugPort.print(F("READSTB Reply slot="));
+    debugPort.print(slot);
+    debugPort.print(F("; port="));
+    debugPort.print((uint32_t)vxi_port);
+    debugPort.print(F("; gpib_address="));
+    debugPort.print(addresses[slot]);
+    debugPort.print(F("; Error_Code="));
+    debugPort.print((uint32_t)readstb_response->error);
+    debugPort.print(F("; Status="));
+    sprintf(buffer, "0x%02X", (uint8_t)readstb_response->status);
+    debugPort.println(buffer);
+#endif
+
+    send_vxi_packet(client, sizeof(readstb_response_packet));
+    return true;
+}
+
+bool VXI_Server::devclear(EthernetClient &client, int slot)
+{
+    // This is where we clear the device
+    
+    // Use of shared memory zones:
+    // clear_request points to the static buffer vxi_read_buffer
+    // clear_response points to the static buffer vxi_send_buffer
+
+    // Will return False when the device does not support the request
+
+#ifdef LOG_VXI_DETAILS
+    char buffer[16];
+    debugPort.print(F("CLEAR DATA Call slot="));
+    debugPort.print(slot);
+    debugPort.print(F("; port="));
+    debugPort.print((uint32_t)vxi_port);
+    debugPort.print(F("; gpib_address="));
+    debugPort.print(addresses[slot]);
+    debugPort.print(F("; LID="));
+    debugPort.print((uint32_t)clear_request->link_id);
+    debugPort.print(F("; Flags="));
+    sprintf(buffer, "0x%08X", (uint32_t)clear_request->flags);
+    debugPort.print(buffer);
+    debugPort.print(F("; I/O_Timeout="));
+    debugPort.print((uint32_t)clear_request->io_timeout);
+    debugPort.print(F("; Lock_Timeout="));
+    debugPort.println((uint32_t)clear_request->lock_timeout);
+#endif
+
+    clear_response->rpc_status = rpc::SUCCESS;
+    clear_response->error = scpi_handler.devclear(addresses[slot], clear_request->io_timeout);
+
+#ifdef LOG_VXI_DETAILS
+    debugPort.print(F("CLEAR Reply slot="));
+    debugPort.print(slot);
+    debugPort.print(F("; port="));
+    debugPort.print((uint32_t)vxi_port);
+    debugPort.print(F("; gpib_address="));
+    debugPort.print(addresses[slot]);
+    debugPort.print(F("; Error_Code="));
+    debugPort.print((uint32_t)clear_response->error);
+    debugPort.println();
+#endif
+
+    send_vxi_packet(client, sizeof(clear_response_packet));
+    return true;
 }
 
 // const char *VXI_Server::get_visa_resource()

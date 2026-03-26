@@ -63,6 +63,27 @@ enum SCPI_handler_read_stop_reasons {
     SRS_ERROR
 };
 
+#ifdef LOG_VXI_DETAILS
+inline const char* SCPI_handler_read_stop_reasons_to_string(SCPI_handler_read_stop_reasons reason) {
+    switch (reason) {
+        case SRS_NONE:
+            return "SRS_NONE";
+        case SRS_MAXSIZE:
+            return "SRS_MAXSIZE";
+        case SRS_EOI: 
+            return "SRS_EOI";
+        case SRS_END:
+            return "SRS_END";
+        case SRS_TIMEOUT:
+            return "SRS_TIMEOUT";
+        case SRS_ERROR:
+            return "SRS_ERROR";
+        default:
+            return "UNKNOWN";
+    }
+}
+#endif
+
 /*!
   @brief  Interface with the devices.
 */
@@ -70,12 +91,18 @@ class SCPI_handler_interface
 {
   public:
     virtual ~SCPI_handler_interface() {} 
+
     // write a command to the SCPI parser or device
-    virtual void write(int address, const char *data, size_t len, bool is_end = true) = 0;
+    virtual SCPI_handler_read_stop_reasons write(int address, const char *data, size_t len, bool is_end = true, uint32_t io_timeout = 1200) = 0;
 
     // read a response from the SCPI parser or device and write to a Stream
+    virtual SCPI_handler_read_stop_reasons read(int address, vxiBufStream &dataStream, size_t max_size, uint32_t io_timeout = 1200) = 0;
 
-    virtual SCPI_handler_read_stop_reasons read(int address, vxiBufStream &dataStream, size_t max_size) = 0;    
+    // read the status byte from the device
+    virtual uint8_t read_stb(int address, uint32_t io_timeout = 1200) = 0;
+
+    // clear the device
+    virtual SCPI_handler_read_stop_reasons devclear(int address, uint32_t io_timeout = 1200) = 0;
     
     // claim_control() should return true if the SCPI parser is ready to accept a command
     virtual bool claim_control() = 0;
@@ -120,6 +147,8 @@ class VXI_Server
     void destroy_link(EthernetClient &tcp, int slot);
     void read(EthernetClient &tcp, int slot);
     void write(EthernetClient &tcp, int slot);
+    bool readstb(EthernetClient &tcp, int slot);
+    bool devclear(EthernetClient &tcp, int slot);
     bool handle_packet(EthernetClient &tcp, int slot, bool overflow = false);
     void parse_scpi(char *buffer);
 

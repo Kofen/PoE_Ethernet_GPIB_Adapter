@@ -36,7 +36,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Test the number of simultaneous connections, using connections on 'gpib0,1'..'gpib0,B', up to 'gpib9,1'..'gpib9,B', while maintaining up to N connections open.",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-i", type=str, default="192.168.7.206", help="Device IP address.")
-    parser.add_argument("-b", type=int, default=2, help="Number of devices that are actually on the bus.")
+    parser.add_argument("-b", type=int, default=3, help="Number of devices that are actually on the bus, excluding the gateway.")
     parser.add_argument("-n", type=int, default=4, help="Number of simultaneous connections to test.")
     parser.add_argument("-t", type=int, default=10000, help="Timeout for any VISA operation in milliseconds.")
     args = parser.parse_args()
@@ -46,8 +46,9 @@ if __name__ == '__main__':
     timeout = args.t
     num = args.n
     instruments = []
+    queries = []
     for i in range(0, 10):
-        for j in range(1, b + 1):
+        for j in range(0, b + 1):
             instruments.append(f"TCPIP::{args.i}::gpib{i},{j}::INSTR")
     instrument_inst = {}
     instrument_name = {}
@@ -69,7 +70,10 @@ if __name__ == '__main__':
             exit(1)
         for i in range(0, num):
             if instrument_inst[i] is not None:
-                query_instrument(instrument_inst[i], instrument_name[i], "*IDN?")
+                query = "*IDN?"
+                if (instrument_name[i].endswith("3::INSTR")):
+                    query = "*ID?"
+                query_instrument(instrument_inst[i], instrument_name[i], query)
         j += 1
         if j >= num:
             j = 0

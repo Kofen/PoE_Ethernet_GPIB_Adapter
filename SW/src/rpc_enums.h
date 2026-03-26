@@ -46,7 +46,7 @@ enum msg_type {
   @brief  Indicates whether the request was accepted or denied.
 
   Note that messages should be denied only for mismatch of RPC protocol
-  or problems with authorization - neither of which are used in espBode.
+  or problems with authorization - neither of which are used in the instrument.
   If accepted, messages will generate a response status which can
   indicate other types of errors.
 */
@@ -93,7 +93,7 @@ enum rpc_status {
 };
 
 /*!
-  @brief  espBode responds only to PORTMAP and VXI_11_CORE programs.
+  @brief  the instrument responds only to PORTMAP and VXI_11_CORE programs.
 */
 enum programs {
 
@@ -102,15 +102,20 @@ enum programs {
 };
 
 /*!
-  @brief  espBode provides only GET_PORT and selected VXI_11 procedures.
+  @brief  VXI procedures that can be requested.
 */
 enum procedures {
 
     GET_PORT = 3,            ///< Return the port on which the VXI_Server is currently listening
     VXI_11_CREATE_LINK = 10, ///< Create a link to handle a series of requests
-    VXI_11_DEV_WRITE = 11,   ///< Write to the AWG
-    VXI_11_DEV_READ = 12,    ///< Read from the AWG
-    VXI_11_DESTROY_LINK = 23 ///< Destroy the link and cycle to the next port
+    VXI_11_DEV_WRITE = 11,   ///< Write
+    VXI_11_DEV_READ = 12,    ///< Read
+    VXI_11_DEV_READSTB = 13, ///< Read the status byte (partially implemented)
+    VXI_11_DEV_TRIGGER = 14, ///< Trigger the device (not implemented)
+    VXI_11_DEV_CLEAR = 15,   ///< Clear the device
+    VXI_11_DEV_LOCK = 18,    ///< Lock the device (not implemented)
+    VXI_11_DESTROY_LINK = 23, ///< Destroy the link
+    VXI_11_CREATE_INT_CHAN = 25 ///< Create an interrupt channel (not implemented)
 };
 
 /*!

@@ -90,26 +90,67 @@ class SCPI_handler : public SCPI_handler_interface {
    public:
     SCPI_handler() {}
 
-    void write(int address, const char *data, size_t len, bool is_end = true) override {
-#ifdef DUMMY_DEVICE
-        debugPort.print(F("SCPI write: "));
-        printBuf(data, len);
-#else
-        if (address == 0) {
-            // maybe we need to address a device directly on the bus
-            address = gpibBus.cfg.caddr;
-        }
-        if (address == 0) return; // if controller: no writing to the bus
-
-        // Send data to the GPIB bus
+    bool addressDevice(uint8_t address, uint8_t dir, const char* context = "") {
         if (gpibBus.cfg.paddr != address) {
             // if the address is different, we need to address the device
             gpibBus.cfg.paddr = address;
             gpibBus.cfg.saddr = 0xFF;  // secondary address is not used
             if (!gpibBus.haveAddressedDevice() || !gpibBus.isDeviceAddressedToListen()) {
-                gpibBus.addressDevice(address, 0xFF, TOLISTEN);
+#ifdef LOG_VXI_DETAILS
+                debugPort.print(F("SCPI Handler "));
+                debugPort.print(context);
+                debugPort.print(F(": Addressing device at GPIB address "));
+                debugPort.println(address);
+#endif                
+                if (gpibBus.addressDevice(address, 0xFF, dir)) { // ERR = true on error
+#ifdef LOG_VXI_DETAILS
+                debugPort.print(F("SCPI Handler "));
+                    debugPort.print(context);
+                    debugPort.print(F(": Failed to address device at GPIB address "));
+                    debugPort.println(address);
+#endif
+                    gpibBus.setControls(CIDS);  // set idle state hoping to recover
+                    gpibBus.unAddressDevice();
+                    gpibBus.cfg.paddr = 0xFF;  // mark as unaddressed
+                    return false;
+                }
             }
         }
+        return true;
+    }
+
+    void set_timeout(uint32_t io_timeout) {
+        if (io_timeout == 0) {
+            io_timeout = 1200;
+        }
+        if (io_timeout < 10) {
+            io_timeout = 10;
+        }
+        if (io_timeout > 32000) {
+            io_timeout = 32000;
+        }
+        gpibBus.cfg.rtmo = io_timeout;
+    }
+
+    SCPI_handler_read_stop_reasons write(int address, const char *data, size_t len, bool is_end = true, uint32_t io_timeout = 1200) override {
+#ifdef DUMMY_DEVICE
+        debugPort.print(F("SCPI write: "));
+        printBuf(data, len);
+        debugPort.println();
+#else
+        set_timeout(io_timeout);
+
+        if (address == 0) {
+            // maybe we need to address a device directly on the bus
+            address = gpibBus.cfg.caddr;
+        }
+        if (address == 0) return SRS_NONE; // if controller: no writing to the bus
+
+        // Send data to the GPIB bus
+        if (!addressDevice(address, TOLISTEN, "write")) {
+            return SRS_TIMEOUT;
+        }
+
         bool had_eoi = gpibBus.cfg.eoi;
         bool had_eos = gpibBus.cfg.eos;
         if (!is_end) {
@@ -127,15 +168,18 @@ class SCPI_handler : public SCPI_handler_interface {
             gpibBus.cfg.paddr = 0xFF;  // mark as unaddressed
         }
 #endif
+        return SRS_NONE;
     }
 
-    SCPI_handler_read_stop_reasons read(int address, vxiBufStream &dataStream, size_t max_size) override {
+    SCPI_handler_read_stop_reasons read(int address, vxiBufStream &dataStream, size_t max_size, uint32_t io_timeout = 1200) override {
 #ifdef DUMMY_DEVICE
         // Simulate a device response
         uint8_t data[] = "SCPI response";
         dataStream.write(data, strlen(data));
         return SRS_EOI;
 #else
+        set_timeout(io_timeout);
+
         if (address == 0) {
             // maybe we need to address a device directly on the bus
             address = gpibBus.cfg.caddr;
@@ -151,14 +195,10 @@ class SCPI_handler : public SCPI_handler_interface {
         bool detectEndByte = false;
         uint8_t endByte = 0;
 
-        if (gpibBus.cfg.paddr != address) {
-            // if the address is different, we need to address the device
-            gpibBus.cfg.paddr = address;
-            gpibBus.cfg.saddr = 0xFF;  // secondary address is not used
-            if (!gpibBus.haveAddressedDevice() || !gpibBus.isDeviceAddressedToTalk()) {
-                gpibBus.addressDevice(address, 0xFF, TOTALK);
-            }
+        if (!addressDevice(address, TOTALK, "read")) {
+            return SRS_TIMEOUT;
         }
+
         enum receiveState stopReason;
         stopReason = gpibBus.receiveData(dataStream, readWithEoi, detectEndByte, endByte, max_size);  // get the data from the bus and send out
         // debugPort.print(F("GPIB max size = "));
@@ -181,9 +221,83 @@ class SCPI_handler : public SCPI_handler_interface {
             // End Byte detected
             return SRS_END;
         } else if (stopReason == RECEIVE_ERR) {
-            // No stop reason detected
+            // mostly timeout
+            return SRS_TIMEOUT;
+        } else 
+            // or something else
+            return SRS_ERROR;
+#endif
+    }
+
+    uint8_t read_stb(int address, uint32_t io_timeout = 1200) override {
+#ifdef DUMMY_DEVICE
+        debugPort.println(F("SCPI read STB"));
+        return 0xAA; // dummy status byte
+#else
+        set_timeout(io_timeout);
+
+        if (address == 0) {
+            // maybe we need to address a device directly on the bus
+            address = gpibBus.cfg.caddr;
+        }
+        if (address != 0) {
+            // if NOT controller, return error
+            return 0xff;
+        } else {
+            // return status for controller
+            return gpibBus.cfg.stat;
+        }
+#endif
+    }
+
+    SCPI_handler_read_stop_reasons devclear(int address, uint32_t io_timeout = 1200) override {
+#ifdef DUMMY_DEVICE
+        debugPort.println(F("SCPI device clear"));
+        return SRS_NONE;
+#else
+        set_timeout(io_timeout);
+
+        if (address == 0) {
+            // maybe we need to address a device directly on the bus
+            address = gpibBus.cfg.caddr;
+        }
+        if (address == 0) {
+            // the controller clear. 
+            // I have chosen to NOT do a universal clear of the bus, but a clear of the gateway.
+            // Universal clear: see dcl_h()
+            // Controller clear: see loc_h() 
+
+            // If device is addressed, unaddress the device
+            if (gpibBus.haveAddressedDevice()) {
+                gpibBus.unAddressDevice();
+                gpibBus.cfg.paddr = 0xFF;  // mark as unaddressed
+            }
+
+            // loc_h() extract: send GTL (Go To Local) to all devices
+            if (digitalRead(REN_PIN)==LOW) {
+                gpibBus.sendAllClear();
+            }
+
+            // and idle the bus (to prevent lockups)
+            gpibBus.setControls(CIDS);
             return SRS_NONE;
-        } else return SRS_ERROR;
+        } else {
+            // This is a device clear, see clr_h()
+            // Although I know that sendSDC has GPIBbus::addressDevice internally, this make extra sure....
+            if (!addressDevice(address, TOLISTEN, "devclear")) {
+                return SRS_ERROR;
+            }
+            if (gpibBus.sendSDC())  {
+                return SRS_ERROR;
+            }
+            // Set GPIB controls back to idle state
+            gpibBus.setControls(CIDS);
+
+            gpibBus.unAddressDevice();
+            gpibBus.cfg.paddr = 0xFF;  // mark as unaddressed            
+
+            return SRS_NONE;
+        }
 #endif
     }
 

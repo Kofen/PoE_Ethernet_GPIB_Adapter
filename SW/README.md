@@ -5,7 +5,7 @@
 In order to program the adapter you first need to flash the Optiboot bootloader via Jtag with an UPDI programmer(Atmel ICE, serial updi or similar).
 After this is done at least once, it can be programmed through the usb-c interface.
 
-An appropreate Optiboot bootloader can be built by following the instructions at https://github.com/Optiboot/optiboot/blob/master/Wiki/CompilingOptiboot_x.md and using
+An appropriate Optiboot bootloader can be built by following the instructions at https://github.com/Optiboot/optiboot/blob/master/Wiki/CompilingOptiboot_x.md and using
 
 `make -f Makefile.mega0 UARTTX=A0 LED=B5 BAUD_RATE=115200 atmega4809`
 

@@ -5,6 +5,14 @@
 In order to program the adapter you first need to flash the Optiboot bootloader via Jtag with an UPDI programmer(Atmel ICE, serial updi or similar).
 After this is done at least once, it can be programmed through the usb-c interface.
 
+An appropreate Optiboot bootloader can be built by following the instructions at https://github.com/Optiboot/optiboot/blob/master/Wiki/CompilingOptiboot_x.md and using
+
+`make -f Makefile.mega0 UARTTX=A0 LED=B5 BAUD_RATE=115200 atmega4809`
+
+After flashing, the `BOOTEND` fuse must be set to `0x02` for the bootloader to be able to write to flash. If using an Atmel-ICE, This can be done using `avrdude` by running 
+
+`avrdude -c atmelice_updi -p atmega4809 -P usb -U fuse8:w:0x02:m`.
+
 In order to program via usb-c, you can use platformio (from the `\SW` directory), or `avrdude` or `avrdudess`.
 
 If you use `avrdude`, select the correct serial port of your device, and the `.elf` or `.hex` file you want to use, and run as follows:

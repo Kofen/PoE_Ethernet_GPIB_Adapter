@@ -209,10 +209,12 @@ This project is licensed under the GPL V3. See the [LICENSE](LICENSE) file for d
 
 ## Release notes
 
+- 2.5
+  - honor VXI-11 END flag when sending GPIB data.
 - 2.4
   - improved "*IDN?" response for VXI-11.
 - 2.3
-  - Fixes large write issue with VXI-11
+  - Fixes large write issue with VXI-11.
   - Better explanation of large write issues in readme.
 - 2.2:
   - Fixes and improvements to VXI-11.2 implementation, especially regarding large reads. Improved compatibility with older instruments.

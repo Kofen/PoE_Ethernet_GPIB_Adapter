@@ -151,19 +151,18 @@ class SCPI_handler : public SCPI_handler_interface {
             return SRS_TIMEOUT;
         }
 
-        bool had_eoi = gpibBus.cfg.eoi;
-        bool had_eos = gpibBus.cfg.eos;
+        const bool had_eoi = gpibBus.cfg.eoi;
+        const uint8_t had_eos = gpibBus.cfg.eos;
+        // VXI-11 END controls EOI independently of the saved Prologix setting.
+        gpibBus.cfg.eoi = is_end;
         if (!is_end) {
-            // if this is not the end of the command, so do not send eoi
-            gpibBus.cfg.eoi = 0;
-            gpibBus.cfg.eos = 3;  // do not append EOI at end of the command
+            // Intermediate packets must not append a command terminator.
+            gpibBus.cfg.eos = 3;
         }
         gpibBus.sendData(data, len, is_end);
-        if (!is_end) {
-            // restore the original settings
-            gpibBus.cfg.eoi = had_eoi;
-            gpibBus.cfg.eos = had_eos;
-        } else {
+        gpibBus.cfg.eoi = had_eoi;
+        gpibBus.cfg.eos = had_eos;
+        if (is_end) {
             gpibBus.unAddressDevice();
             gpibBus.cfg.paddr = 0xFF;  // mark as unaddressed
         }
